@@ -1,5 +1,12 @@
 const { StatusCodes } = require('http-status-codes')
-const { createDonationSchema, listDonationsQuerySchema, updateDonationSchema, ngoListDonationsQuerySchema } = require('./donation.validation')
+const {
+  createDonationSchema,
+  listDonationsQuerySchema,
+  updateDonationSchema,
+  ngoListDonationsQuerySchema,
+  listNgoReservationsQuerySchema,
+  listRestaurantReservationsQuerySchema,
+} = require('./donation.validation')
 const {
   createDonation,
   getRestaurantDonations,
@@ -8,6 +15,8 @@ const {
   softDeleteDonation,
   getAvailableDonationsForNgo,
   reserveDonationForNgo,
+  getNgoReservations,
+  getRestaurantReservations,
 } = require('./donation.service')
 
 async function postDonation(req, res, next) {
@@ -292,6 +301,84 @@ async function reserveDonation(req, res, next) {
   }
 }
 
+async function listMyReservations(req, res, next) {
+  if (!req.user.organizationId) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'ORGANIZATION_REQUIRED',
+        message: 'Authenticated NGO user is not associated with an organization.',
+      },
+    })
+  }
+
+  const parsedQuery = listNgoReservationsQuerySchema.safeParse(req.query)
+
+  if (!parsedQuery.success) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Query parameters are invalid.',
+        details: parsedQuery.error.issues.map(({ path, message }) => ({
+          field: path.join('.'),
+          message,
+        })),
+      },
+    })
+  }
+
+  try {
+    const result = await getNgoReservations(req.user.organizationId, parsedQuery.data)
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      data: result,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
+async function listIncomingReservationsForRestaurant(req, res, next) {
+  if (!req.user.organizationId) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'ORGANIZATION_REQUIRED',
+        message: 'Authenticated restaurant user is not associated with an organization.',
+      },
+    })
+  }
+
+  const parsedQuery = listRestaurantReservationsQuerySchema.safeParse(req.query)
+
+  if (!parsedQuery.success) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Query parameters are invalid.',
+        details: parsedQuery.error.issues.map(({ path, message }) => ({
+          field: path.join('.'),
+          message,
+        })),
+      },
+    })
+  }
+
+  try {
+    const result = await getRestaurantReservations(req.user.organizationId, parsedQuery.data)
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      data: result,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
 module.exports = {
   postDonation,
   listMyDonations,
@@ -300,7 +387,11 @@ module.exports = {
   deleteSingleDonation,
   listAvailableDonationsForNgo,
   reserveDonation,
+  listMyReservations,
+  listIncomingReservationsForRestaurant,
 }
+
+
 
 
 

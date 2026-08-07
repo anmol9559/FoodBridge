@@ -2,7 +2,7 @@ const { Router } = require('express')
 const { StatusCodes } = require('http-status-codes')
 const { authenticate } = require('../middlewares/auth.middleware')
 const { requireRole } = require('../middlewares/role.middleware')
-const { listAvailableDonationsForNgo, reserveDonation } = require('../modules/donation/donation.controller')
+const { listAvailableDonationsForNgo, reserveDonation, listMyReservations } = require('../modules/donation/donation.controller')
 
 const ngoRouter = Router()
 
@@ -19,7 +19,9 @@ ngoRouter.get('/test', authenticate, requireRole('NGO'), (req, res) => {
 
 ngoRouter.get('/donations', authenticate, requireRole('NGO'), listAvailableDonationsForNgo)
 ngoRouter.post('/donations/:id/reserve', authenticate, requireRole('NGO'), reserveDonation)
+ngoRouter.get('/reservations', authenticate, requireRole('NGO'), listMyReservations)
 
 module.exports = ngoRouter
+
 
 

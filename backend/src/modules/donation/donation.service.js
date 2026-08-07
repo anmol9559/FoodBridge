@@ -251,6 +251,137 @@ async function reserveDonationForNgo({ donationId, ngoId, userId, notes }) {
   })
 }
 
+async function getNgoReservations(ngoId, { page = 1, limit = 10, status }) {
+  const skip = (page - 1) * limit
+
+  const where = {
+    ngoId,
+    deletedAt: null,
+    ...(status ? { status } : {}),
+  }
+
+  const [reservations, totalItems] = await prisma.$transaction([
+    prisma.reservation.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        status: true,
+        notes: true,
+        createdAt: true,
+        donation: {
+          select: {
+            id: true,
+            title: true,
+            quantity: true,
+            quantityUnit: true,
+            foodType: true,
+            mealType: true,
+            pickupAddress: true,
+            expiresAt: true,
+            status: true,
+            restaurant: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.reservation.count({ where }),
+  ])
+
+  const totalPages = Math.ceil(totalItems / limit) || 0
+
+  return {
+    reservations,
+    pagination: {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+    },
+  }
+}
+
+async function getRestaurantReservations(restaurantId, { page = 1, limit = 10, status }) {
+  const skip = (page - 1) * limit
+
+  const where = {
+    deletedAt: null,
+    donation: {
+      restaurantId,
+    },
+    ...(status ? { status } : {}),
+  }
+
+  const [reservations, totalItems] = await prisma.$transaction([
+    prisma.reservation.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        status: true,
+        notes: true,
+        createdAt: true,
+        donation: {
+          select: {
+            id: true,
+            title: true,
+            quantity: true,
+            quantityUnit: true,
+            foodType: true,
+            mealType: true,
+            pickupAddress: true,
+            expiresAt: true,
+          },
+        },
+        ngo: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+        reservedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            email: true,
+          },
+        },
+      },
+    }),
+    prisma.reservation.count({ where }),
+  ])
+
+  const totalPages = Math.ceil(totalItems / limit) || 0
+
+  return {
+    reservations,
+    pagination: {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+    },
+  }
+}
+
 module.exports = {
   createDonation,
   getRestaurantDonations,
@@ -259,7 +390,11 @@ module.exports = {
   softDeleteDonation,
   getAvailableDonationsForNgo,
   reserveDonationForNgo,
+  getNgoReservations,
+  getRestaurantReservations,
 }
+
+
 
 
 

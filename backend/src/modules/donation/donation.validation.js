@@ -104,8 +104,22 @@ const reserveDonationSchema = z
 const ngoListDonationsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
-  search: z.string().trim().optional(),
-});  
+  search: z.string().trim().max(191).optional(),
+})
+
+const reservationStatuses = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'EXPIRED']
+
+const listNgoReservationsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  status: z.enum(reservationStatuses).optional(),
+})
+
+const listRestaurantReservationsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  status: z.enum(reservationStatuses).optional(),
+})
 
 module.exports = {
   createDonationSchema,
@@ -113,7 +127,13 @@ module.exports = {
   updateDonationSchema,
   ngoListDonationsQuerySchema,
   reserveDonationSchema,
+  listNgoReservationsQuerySchema,
+  listRestaurantReservationsQuerySchema,
 }
+
+
+
+
 
 
 
