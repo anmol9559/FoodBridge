@@ -1,6 +1,7 @@
 const { Router } = require('express')
 const rateLimit = require('express-rate-limit')
-const { login, register } = require('../modules/auth/auth.controller')
+const { login, register, getMe } = require('../modules/auth/auth.controller')
+const { authenticate } = require('../middlewares/auth.middleware')
 
 const authRouter = Router()
 
@@ -28,5 +29,8 @@ const loginLimiter = rateLimit({
 
 authRouter.post('/register', registerLimiter, register)
 authRouter.post('/login', loginLimiter, login)
+authRouter.get('/me', authenticate, getMe)
 
 module.exports = authRouter
+
+

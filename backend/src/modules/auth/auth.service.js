@@ -152,4 +152,44 @@ async function loginUser({ email, password, ipAddress, userAgent }) {
   }
 }
 
-module.exports = { loginUser, registerUser }
+async function getCurrentUser(userId) {
+  return prisma.user.findFirst({
+    where: {
+      id: userId,
+      isActive: true,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+      role: true,
+      profileImageUrl: true,
+      emailVerifiedAt: true,
+      lastLoginAt: true,
+      createdAt: true,
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          description: true,
+          logoImageUrl: true,
+          websiteUrl: true,
+          registrationNumber: true,
+          email: true,
+          phone: true,
+          verificationStatus: true,
+          verifiedAt: true,
+          createdAt: true,
+        },
+      },
+    },
+  })
+}
+
+module.exports = { loginUser, registerUser, getCurrentUser }
+
+

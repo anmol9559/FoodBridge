@@ -32,3 +32,5 @@ const loginSchema = z.object({
 }).strict()
 
 module.exports = { loginSchema, registerSchema }
+
+

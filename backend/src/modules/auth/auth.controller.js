@@ -1,6 +1,6 @@
 const { StatusCodes } = require('http-status-codes')
 const { loginSchema, registerSchema } = require('./auth.validation')
-const { loginUser, registerUser } = require('./auth.service')
+const { loginUser, registerUser, getCurrentUser } = require('./auth.service')
 
 async function register(req, res, next) {
   const parsedInput = registerSchema.safeParse(req.body)
@@ -77,4 +77,26 @@ async function login(req, res, next) {
   }
 }
 
-module.exports = { login, register }
+async function getMe(req, res, next) {
+  try {
+    const user = await getCurrentUser(req.user.id)
+
+    if (!user) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        success: false,
+        error: { code: 'USER_NOT_FOUND', message: 'User profile not found.' },
+      })
+    }
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      data: user,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
+module.exports = { login, register, getMe }
+
+
