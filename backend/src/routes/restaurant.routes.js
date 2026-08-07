@@ -2,6 +2,7 @@ const { Router } = require('express')
 const { StatusCodes } = require('http-status-codes')
 const { authenticate } = require('../middlewares/auth.middleware')
 const { requireRole } = require('../middlewares/role.middleware')
+const { postDonation } = require('../modules/donation/donation.controller')
 
 const restaurantRouter = Router()
 
@@ -16,4 +17,7 @@ restaurantRouter.get('/test', authenticate, requireRole('RESTAURANT'), (req, res
   })
 })
 
+restaurantRouter.post('/donations', authenticate, requireRole('RESTAURANT'), postDonation)
+
 module.exports = restaurantRouter
+

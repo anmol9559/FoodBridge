@@ -33,6 +33,25 @@ enum VerificationStatus {
   SUSPENDED
 }
 
+enum FoodDonationStatus {
+  AVAILABLE
+  RESERVED
+  APPROVED
+  PICKED_UP
+  COLLECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum FoodType {
+  COOKED
+  PACKAGED
+  RAW
+  BAKERY
+  BEVERAGE
+  OTHER
+}
+
 model User {
   id              String         @id @default(cuid())
   email           String         @unique @db.VarChar(191)
@@ -58,23 +77,24 @@ model User {
 }
 
 model Organization {
-  id                 String           @id @default(cuid())
-  name               String           @db.VarChar(191)
+  id                 String               @id @default(cuid())
+  name               String               @db.VarChar(191)
   type               OrganizationType
-  description        String?          @db.Text
-  logoImageUrl       String?          @db.VarChar(2048)
-  websiteUrl         String?          @db.VarChar(2048)
-  registrationNumber String?          @unique @db.VarChar(100)
-  email              String?          @db.VarChar(191)
-  phone              String?          @db.VarChar(30)
-  verificationStatus VerificationStatus @default(PENDING)
+  description        String?              @db.Text
+  logoImageUrl       String?              @db.VarChar(2048)
+  websiteUrl         String?              @db.VarChar(2048)
+  registrationNumber String?              @unique @db.VarChar(100)
+  email              String?              @db.VarChar(191)
+  phone              String?              @db.VarChar(30)
+  verificationStatus VerificationStatus   @default(PENDING)
   verifiedAt         DateTime?
-  isActive           Boolean          @default(true)
+  isActive           Boolean              @default(true)
   deletedAt          DateTime?
   users              User[]
   locations          OrganizationLocation[]
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  donations          FoodDonation[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   @@index([type, verificationStatus, isActive])
   @@index([email])
@@ -107,19 +127,53 @@ model OrganizationLocation {
 }
 
 model RefreshToken {
-  id        String    @id @default(cuid())
-  tokenHash String    @unique @db.VarChar(255)
-  userId    String
-  expiresAt DateTime
-  revokedAt DateTime?
-  lastUsedAt DateTime?
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique @db.VarChar(255)
+  userId      String
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  lastUsedAt  DateTime?
   tokenFamily String    @db.VarChar(100)
   ipAddress   String?   @db.VarChar(45)
   userAgent   String?   @db.VarChar(512)
-  createdAt DateTime  @default(now())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
   @@index([userId, tokenFamily])
   @@index([expiresAt])
 }
+
+model FoodDonation {
+  id                  String             @id @default(cuid())
+  restaurantId        String
+  restaurant          Organization       @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  title               String             @db.VarChar(191)
+  description         String?            @db.Text
+  quantity            Decimal            @db.Decimal(10, 2)
+  quantityUnit        String             @db.VarChar(50)
+  foodType            FoodType
+  mealType            String?            @db.VarChar(50)
+  packagingType       String?            @db.VarChar(100)
+  isVegetarian        Boolean            @default(false)
+  isVegan             Boolean            @default(false)
+  cookedAt            DateTime?
+  expiresAt           DateTime
+  pickupAddress       String?            @db.Text
+  latitude            Decimal?           @db.Decimal(10, 7)
+  longitude           Decimal?           @db.Decimal(10, 7)
+  estimatedServings   Int?
+  specialInstructions String?            @db.Text
+  images              Json?
+  status              FoodDonationStatus @default(AVAILABLE)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([restaurantId])
+  @@index([status, expiresAt])
+  @@index([foodType, status])
+  @@index([latitude, longitude])
+  @@index([deletedAt])
+}
+
