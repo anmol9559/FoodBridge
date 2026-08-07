@@ -1,6 +1,8 @@
 const { StatusCodes } = require('http-status-codes')
 
-function authorize(...allowedRoles) {
+function requireRole(...roles) {
+  const allowedRoles = roles.flat()
+
   return (req, res, next) => {
     if (!req.user) {
       return res.status(StatusCodes.UNAUTHORIZED).json({
@@ -17,7 +19,7 @@ function authorize(...allowedRoles) {
         success: false,
         error: {
           code: 'FORBIDDEN',
-          message: 'You do not have permission to perform this action.',
+          message: 'You do not have permission to access this resource.',
         },
       })
     }
@@ -26,4 +28,4 @@ function authorize(...allowedRoles) {
   }
 }
 
-module.exports = { authorize }
+module.exports = { requireRole }

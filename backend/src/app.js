@@ -6,6 +6,10 @@ const morgan = require('morgan')
 const env = require('./config/env')
 const healthRouter = require('./routes/health.routes')
 const authRouter = require('./routes/auth.routes')
+const adminRouter = require('./routes/admin.routes')
+const restaurantRouter = require('./routes/restaurant.routes')
+const ngoRouter = require('./routes/ngo.routes')
+const recyclerRouter = require('./routes/recycler.routes')
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler')
 
 const app = express()
@@ -20,7 +24,12 @@ app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeader
 
 app.use('/health', healthRouter)
 app.use('/api/v1/auth', authRouter)
+app.use('/api/v1/admin', adminRouter)
+app.use('/api/v1/restaurant', restaurantRouter)
+app.use('/api/v1/ngo', ngoRouter)
+app.use('/api/v1/recycler', recyclerRouter)
 app.use(notFoundHandler)
 app.use(errorHandler)
 
 module.exports = app
+
