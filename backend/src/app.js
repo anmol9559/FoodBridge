@@ -5,6 +5,7 @@ const helmet = require('helmet')
 const morgan = require('morgan')
 const env = require('./config/env')
 const healthRouter = require('./routes/health.routes')
+const authRouter = require('./routes/auth.routes')
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler')
 
 const app = express()
@@ -18,6 +19,7 @@ app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'))
 app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }))
 
 app.use('/health', healthRouter)
+app.use('/api/v1/auth', authRouter)
 app.use(notFoundHandler)
 app.use(errorHandler)
 
