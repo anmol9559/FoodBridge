@@ -18,6 +18,7 @@ const {
   getNgoReservations,
   getRestaurantReservations,
   confirmReservationForRestaurant,
+  rejectReservationForRestaurant,
 } = require('./donation.service')
 
 async function postDonation(req, res, next) {
@@ -439,6 +440,65 @@ async function confirmReservation(req, res, next) {
   }
 }
 
+async function rejectReservation(req, res, next) {
+  if (!req.user.organizationId) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'ORGANIZATION_REQUIRED',
+        message: 'Authenticated restaurant user is not associated with an organization.',
+      },
+    })
+  }
+
+  const { id } = req.params
+
+  try {
+    const result = await rejectReservationForRestaurant({
+      reservationId: id,
+      restaurantId: req.user.organizationId,
+    })
+
+    if (result.status === 'NOT_FOUND') {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Reservation not found.',
+        },
+      })
+    }
+
+    if (result.status === 'FORBIDDEN') {
+      return res.status(StatusCodes.FORBIDDEN).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to reject this reservation.',
+        },
+      })
+    }
+
+    if (result.status === 'INVALID_STATUS') {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: 'Only pending reservations can be rejected.',
+        },
+      })
+    }
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Reservation rejected successfully.',
+      data: result.data,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
 module.exports = {
   postDonation,
   listMyDonations,
@@ -450,7 +510,9 @@ module.exports = {
   listMyReservations,
   listIncomingReservationsForRestaurant,
   confirmReservation,
+  rejectReservation,
 }
+
 
 
 
