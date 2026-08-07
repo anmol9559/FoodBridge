@@ -45,7 +45,8 @@ const createDonationSchema = z
     },
   )
 
-const donationStatuses = ['AVAILABLE', 'RESERVED', 'APPROVED', 'PICKED_UP', 'COLLECTED', 'EXPIRED', 'CANCELLED']
+const donationStatuses = ['AVAILABLE', 'RESERVED', 'APPROVED', 'PICKED_UP', 'COLLECTED', 'EXPIRED', 'CANCELLED', 'COMPLETED']
+
 
 const listDonationsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),

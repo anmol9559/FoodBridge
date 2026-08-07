@@ -19,6 +19,7 @@ const {
   getRestaurantReservations,
   confirmReservationForRestaurant,
   rejectReservationForRestaurant,
+  completePickupForNgo,
 } = require('./donation.service')
 
 async function postDonation(req, res, next) {
@@ -499,6 +500,65 @@ async function rejectReservation(req, res, next) {
   }
 }
 
+async function completePickup(req, res, next) {
+  if (!req.user.organizationId) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'ORGANIZATION_REQUIRED',
+        message: 'Authenticated NGO user is not associated with an organization.',
+      },
+    })
+  }
+
+  const { id } = req.params
+
+  try {
+    const result = await completePickupForNgo({
+      reservationId: id,
+      ngoId: req.user.organizationId,
+    })
+
+    if (result.status === 'NOT_FOUND') {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Reservation not found.',
+        },
+      })
+    }
+
+    if (result.status === 'FORBIDDEN') {
+      return res.status(StatusCodes.FORBIDDEN).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to complete this pickup.',
+        },
+      })
+    }
+
+    if (result.status === 'INVALID_STATUS') {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: 'Only confirmed reservations can be marked as completed.',
+        },
+      })
+    }
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Pickup completed successfully.',
+      data: result.data,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
 module.exports = {
   postDonation,
   listMyDonations,
@@ -511,7 +571,9 @@ module.exports = {
   listIncomingReservationsForRestaurant,
   confirmReservation,
   rejectReservation,
+  completePickup,
 }
+
 
 
 

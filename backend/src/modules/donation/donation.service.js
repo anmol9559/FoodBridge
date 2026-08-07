@@ -509,6 +509,63 @@ async function rejectReservationForRestaurant({ reservationId, restaurantId }) {
   })
 }
 
+async function completePickupForNgo({ reservationId, ngoId }) {
+  return prisma.$transaction(async (tx) => {
+    const reservation = await tx.reservation.findFirst({
+      where: {
+        id: reservationId,
+        deletedAt: null,
+      },
+      include: {
+        donation: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    })
+
+    if (!reservation) {
+      return { status: 'NOT_FOUND' }
+    }
+
+    if (reservation.ngoId !== ngoId) {
+      return { status: 'FORBIDDEN' }
+    }
+
+    if (reservation.status !== 'CONFIRMED') {
+      return { status: 'INVALID_STATUS' }
+    }
+
+    const updatedReservation = await tx.reservation.update({
+      where: { id: reservationId },
+      data: { status: 'COMPLETED' },
+      select: {
+        id: true,
+        status: true,
+      },
+    })
+
+    const updatedDonation = await tx.foodDonation.update({
+      where: { id: reservation.donation.id },
+      data: { status: 'COMPLETED' },
+      select: {
+        title: true,
+      },
+    })
+
+    return {
+      status: 'SUCCESS',
+      data: {
+        id: updatedReservation.id,
+        status: updatedReservation.status,
+        donationTitle: updatedDonation.title,
+      },
+    }
+  })
+}
+
 module.exports = {
   createDonation,
   getRestaurantDonations,
@@ -521,7 +578,9 @@ module.exports = {
   getRestaurantReservations,
   confirmReservationForRestaurant,
   rejectReservationForRestaurant,
+  completePickupForNgo,
 }
+
 
 
 

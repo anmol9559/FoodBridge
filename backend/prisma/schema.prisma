@@ -41,7 +41,9 @@ enum FoodDonationStatus {
   COLLECTED
   EXPIRED
   CANCELLED
+  COMPLETED
 }
+
 
 enum FoodType {
   COOKED
