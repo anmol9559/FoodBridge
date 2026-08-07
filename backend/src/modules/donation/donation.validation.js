@@ -54,5 +54,46 @@ const listDonationsQuerySchema = z.object({
   search: z.string().trim().max(191).optional(),
 })
 
-module.exports = { createDonationSchema, listDonationsQuerySchema }
+const updateDonationSchema = z
+  .object({
+    title: z.string().trim().min(1, 'Title cannot be empty.').max(191).optional(),
+    description: z.string().trim().max(65_535).nullable().optional(),
+    quantity: z.number({ invalid_type_error: 'Quantity must be a number.' }).positive('Quantity must be greater than 0.').optional(),
+    quantityUnit: z.string().trim().min(1, 'Quantity unit cannot be empty.').max(50).optional(),
+    foodType: z.enum(foodTypes, { errorMap: () => ({ message: 'Invalid food type.' }) }).optional(),
+    mealType: z.string().trim().max(50).nullable().optional(),
+    packagingType: z.string().trim().max(100).nullable().optional(),
+    isVegetarian: z.boolean().optional(),
+    isVegan: z.boolean().optional(),
+    estimatedServings: z
+      .number({ invalid_type_error: 'Estimated servings must be a number.' })
+      .int('Estimated servings must be an integer.')
+      .positive('Estimated servings must be greater than 0.')
+      .nullable()
+      .optional(),
+    cookedAt: z.coerce.date().nullable().optional(),
+    expiresAt: z.coerce.date().optional(),
+    pickupAddress: z.string().trim().max(65_535).nullable().optional(),
+    latitude: z.number().min(-90).max(90).nullable().optional(),
+    longitude: z.number().min(-180).max(180).nullable().optional(),
+    specialInstructions: z.string().trim().max(65_535).nullable().optional(),
+    images: z.array(z.string().trim().url('Image must be a valid URL.')).optional(),
+    status: z.enum(donationStatuses).optional(),
+  })
+  .strict()
+  .refine(
+    (data) => {
+      if (data.cookedAt && data.expiresAt) {
+        return new Date(data.expiresAt) > new Date(data.cookedAt)
+      }
+      return true
+    },
+    {
+      message: 'Expiration time (expiresAt) must be after cooking time (cookedAt).',
+      path: ['expiresAt'],
+    },
+  )
+
+module.exports = { createDonationSchema, listDonationsQuerySchema, updateDonationSchema }
+
 

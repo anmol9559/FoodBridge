@@ -1,6 +1,6 @@
 const { StatusCodes } = require('http-status-codes')
-const { createDonationSchema, listDonationsQuerySchema } = require('./donation.validation')
-const { createDonation, getRestaurantDonations, getDonationById } = require('./donation.service')
+const { createDonationSchema, listDonationsQuerySchema, updateDonationSchema } = require('./donation.validation')
+const { createDonation, getRestaurantDonations, getDonationById, updateDonation, softDeleteDonation } = require('./donation.service')
 
 async function postDonation(req, res, next) {
   const parsedInput = createDonationSchema.safeParse(req.body)
@@ -115,6 +115,97 @@ async function getSingleDonation(req, res, next) {
   }
 }
 
-module.exports = { postDonation, listMyDonations, getSingleDonation }
+async function updateSingleDonation(req, res, next) {
+  const { id } = req.params
+  const parsedInput = updateDonationSchema.safeParse(req.body)
+
+  if (!parsedInput.success) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Donation update data is invalid.',
+        details: parsedInput.error.issues.map(({ path, message }) => ({
+          field: path.join('.'),
+          message,
+        })),
+      },
+    })
+  }
+
+  try {
+    const existingDonation = await getDonationById(id)
+
+    if (!existingDonation) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Food donation not found.',
+        },
+      })
+    }
+
+    if (existingDonation.restaurantId !== req.user.organizationId) {
+      return res.status(StatusCodes.FORBIDDEN).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to update this donation.',
+        },
+      })
+    }
+
+    const updatedDonation = await updateDonation(id, parsedInput.data)
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Food donation updated successfully.',
+      data: updatedDonation,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
+async function deleteSingleDonation(req, res, next) {
+  try {
+    const { id } = req.params
+    const existingDonation = await getDonationById(id)
+
+    if (!existingDonation) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Food donation not found.',
+        },
+      })
+    }
+
+    if (existingDonation.restaurantId !== req.user.organizationId) {
+      return res.status(StatusCodes.FORBIDDEN).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to delete this donation.',
+        },
+      })
+    }
+
+    await softDeleteDonation(id)
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Food donation deleted successfully.',
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
+module.exports = { postDonation, listMyDonations, getSingleDonation, updateSingleDonation, deleteSingleDonation }
+
+
 
 

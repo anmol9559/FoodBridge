@@ -94,6 +94,40 @@ async function getDonationById(donationId) {
   })
 }
 
-module.exports = { createDonation, getRestaurantDonations, getDonationById }
+async function updateDonation(donationId, updateData) {
+  const { images, ...fields } = updateData
+
+  return prisma.foodDonation.update({
+    where: { id: donationId },
+    data: {
+      ...fields,
+      ...(images !== undefined ? { images } : {}),
+    },
+    include: {
+      restaurant: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
+  })
+}
+
+async function softDeleteDonation(donationId) {
+  return prisma.foodDonation.update({
+    where: { id: donationId },
+    data: {
+      deletedAt: new Date(),
+    },
+  })
+}
+
+module.exports = { createDonation, getRestaurantDonations, getDonationById, updateDonation, softDeleteDonation }
+
+
 
 
