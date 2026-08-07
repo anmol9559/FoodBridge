@@ -52,6 +52,14 @@ enum FoodType {
   OTHER
 }
 
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
 model User {
   id              String         @id @default(cuid())
   email           String         @unique @db.VarChar(191)
@@ -68,6 +76,7 @@ model User {
   organizationId  String?
   organization    Organization?  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   refreshTokens   RefreshToken[]
+  reservations    Reservation[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -93,6 +102,7 @@ model Organization {
   users              User[]
   locations          OrganizationLocation[]
   donations          FoodDonation[]
+  reservations       Reservation[]
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 
@@ -166,6 +176,7 @@ model FoodDonation {
   specialInstructions String?            @db.Text
   images              Json?
   status              FoodDonationStatus @default(AVAILABLE)
+  reservation         Reservation?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   deletedAt           DateTime?
@@ -176,4 +187,26 @@ model FoodDonation {
   @@index([latitude, longitude])
   @@index([deletedAt])
 }
+
+model Reservation {
+  id           String            @id @default(cuid())
+  donationId   String            @unique
+  donation     FoodDonation      @relation(fields: [donationId], references: [id], onDelete: Restrict)
+  ngoId        String
+  ngo          Organization      @relation(fields: [ngoId], references: [id], onDelete: Restrict)
+  reservedById String?
+  reservedBy   User?             @relation(fields: [reservedById], references: [id], onDelete: SetNull)
+  status       ReservationStatus @default(PENDING)
+  notes        String?           @db.Text
+  reservedAt   DateTime          @default(now())
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+
+  @@index([ngoId])
+  @@index([donationId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
 

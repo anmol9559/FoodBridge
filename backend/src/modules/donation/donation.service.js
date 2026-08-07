@@ -126,7 +126,142 @@ async function softDeleteDonation(donationId) {
   })
 }
 
-module.exports = { createDonation, getRestaurantDonations, getDonationById, updateDonation, softDeleteDonation }
+async function getAvailableDonationsForNgo({ page = 1, limit = 10, search }) {
+  const skip = (page - 1) * limit
+
+  const where = {
+    status: 'AVAILABLE',
+    deletedAt: null,
+    restaurant: {
+      isActive: true,
+      deletedAt: null,
+    },
+    ...(search ? { title: { contains: search } } : {}),
+  }
+
+  const [donations, totalItems] = await prisma.$transaction([
+    prisma.foodDonation.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            email: true,
+            phone: true,
+            locations: {
+              where: {
+                deletedAt: null,
+              },
+              select: {
+                id: true,
+                label: true,
+                addressLine1: true,
+                addressLine2: true,
+                city: true,
+                state: true,
+                postalCode: true,
+                countryCode: true,
+                latitude: true,
+                longitude: true,
+                isPrimary: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.foodDonation.count({ where }),
+  ])
+
+  const totalPages = Math.ceil(totalItems / limit)
+
+  return {
+    donations,
+    pagination: {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+    },
+  }
+}
+
+async function reserveDonationForNgo({ donationId, ngoId, userId, notes }) {
+  return prisma.$transaction(async (tx) => {
+    const donation = await tx.foodDonation.findFirst({
+      where: {
+        id: donationId,
+        deletedAt: null,
+      },
+    })
+
+    if (!donation) {
+      return { status: 'NOT_FOUND' }
+    }
+
+    if (donation.status !== 'AVAILABLE') {
+      return { status: 'UNAVAILABLE' }
+    }
+
+    await tx.foodDonation.update({
+      where: { id: donationId },
+      data: { status: 'RESERVED' },
+    })
+
+    const reservation = await tx.reservation.create({
+      data: {
+        donationId,
+        ngoId,
+        reservedById: userId,
+        status: 'PENDING',
+        notes: notes || undefined,
+      },
+      include: {
+        donation: {
+          include: {
+            restaurant: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+        ngo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    })
+
+    return { status: 'SUCCESS', reservation }
+  })
+}
+
+module.exports = {
+  createDonation,
+  getRestaurantDonations,
+  getDonationById,
+  updateDonation,
+  softDeleteDonation,
+  getAvailableDonationsForNgo,
+  reserveDonationForNgo,
+}
+
+
 
 
 

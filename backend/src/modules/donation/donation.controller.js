@@ -1,6 +1,14 @@
 const { StatusCodes } = require('http-status-codes')
-const { createDonationSchema, listDonationsQuerySchema, updateDonationSchema } = require('./donation.validation')
-const { createDonation, getRestaurantDonations, getDonationById, updateDonation, softDeleteDonation } = require('./donation.service')
+const { createDonationSchema, listDonationsQuerySchema, updateDonationSchema, ngoListDonationsQuerySchema } = require('./donation.validation')
+const {
+  createDonation,
+  getRestaurantDonations,
+  getDonationById,
+  updateDonation,
+  softDeleteDonation,
+  getAvailableDonationsForNgo,
+  reserveDonationForNgo,
+} = require('./donation.service')
 
 async function postDonation(req, res, next) {
   const parsedInput = createDonationSchema.safeParse(req.body)
@@ -204,7 +212,97 @@ async function deleteSingleDonation(req, res, next) {
   }
 }
 
-module.exports = { postDonation, listMyDonations, getSingleDonation, updateSingleDonation, deleteSingleDonation }
+async function listAvailableDonationsForNgo(req, res, next) {
+  const parsedQuery = ngoListDonationsQuerySchema.safeParse(req.query)
+
+  if (!parsedQuery.success) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Query parameters are invalid.',
+        details: parsedQuery.error.issues.map(({ path, message }) => ({
+          field: path.join('.'),
+          message,
+        })),
+      },
+    })
+  }
+
+  try {
+    const result = await getAvailableDonationsForNgo(parsedQuery.data)
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      data: result,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
+async function reserveDonation(req, res, next) {
+  if (!req.user.organizationId) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'ORGANIZATION_REQUIRED',
+        message: 'Authenticated NGO user is not associated with an organization.',
+      },
+    })
+  }
+
+  const { id } = req.params
+
+  try {
+    const result = await reserveDonationForNgo({
+      donationId: id,
+      ngoId: req.user.organizationId,
+      userId: req.user.id,
+      notes: req.body?.notes,
+    })
+
+    if (result.status === 'NOT_FOUND') {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Food donation not found.',
+        },
+      })
+    }
+
+    if (result.status === 'UNAVAILABLE') {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        error: {
+          code: 'UNAVAILABLE',
+          message: 'Food donation is already reserved or unavailable.',
+        },
+      })
+    }
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Food donation reserved successfully.',
+      data: result.reservation,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
+module.exports = {
+  postDonation,
+  listMyDonations,
+  getSingleDonation,
+  updateSingleDonation,
+  deleteSingleDonation,
+  listAvailableDonationsForNgo,
+  reserveDonation,
+}
+
+
 
 
 
