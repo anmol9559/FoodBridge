@@ -45,4 +45,14 @@ const createDonationSchema = z
     },
   )
 
-module.exports = { createDonationSchema }
+const donationStatuses = ['AVAILABLE', 'RESERVED', 'APPROVED', 'PICKED_UP', 'COLLECTED', 'EXPIRED', 'CANCELLED']
+
+const listDonationsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  status: z.enum(donationStatuses).optional(),
+  search: z.string().trim().max(191).optional(),
+})
+
+module.exports = { createDonationSchema, listDonationsQuerySchema }
+

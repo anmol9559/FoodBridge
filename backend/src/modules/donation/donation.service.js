@@ -39,4 +39,61 @@ async function createDonation(restaurantId, input) {
   return donation
 }
 
-module.exports = { createDonation }
+async function getRestaurantDonations(restaurantId, { page = 1, limit = 10, status, search }) {
+  const skip = (page - 1) * limit
+
+  const where = {
+    restaurantId,
+    deletedAt: null,
+    ...(status ? { status } : {}),
+    ...(search ? { title: { contains: search } } : {}),
+  }
+
+  const [donations, totalItems] = await prisma.$transaction([
+    prisma.foodDonation.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        createdAt: 'desc',
+      },
+    }),
+    prisma.foodDonation.count({ where }),
+  ])
+
+  const totalPages = Math.ceil(totalItems / limit)
+
+  return {
+    donations,
+    pagination: {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+    },
+  }
+}
+
+async function getDonationById(donationId) {
+  return prisma.foodDonation.findFirst({
+    where: {
+      id: donationId,
+      deletedAt: null,
+    },
+    include: {
+      restaurant: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
+  })
+}
+
+module.exports = { createDonation, getRestaurantDonations, getDonationById }
+
+
