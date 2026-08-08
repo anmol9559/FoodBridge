@@ -230,10 +230,68 @@ async function getNgosForAdmin({ page = 1, limit = 10, search }) {
   }
 }
 
+async function getDonationsForAdmin({ page = 1, limit = 10, search }) {
+  const skip = (page - 1) * limit
+
+  const where = {
+    deletedAt: null,
+    ...(search ? { title: { contains: search } } : {}),
+  }
+
+  const [donations, totalItems] = await prisma.$transaction([
+    prisma.foodDonation.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        quantity: true,
+        quantityUnit: true,
+        foodType: true,
+        mealType: true,
+        packagingType: true,
+        status: true,
+        estimatedServings: true,
+        pickupAddress: true,
+        createdAt: true,
+        expiresAt: true,
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    }),
+    prisma.foodDonation.count({ where }),
+  ])
+
+  const totalPages = Math.ceil(totalItems / limit) || 0
+
+  return {
+    donations,
+    pagination: {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+    },
+  }
+}
+
 module.exports = {
   getAdminDashboardStats,
   getRestaurantsForAdmin,
   getNgosForAdmin,
+  getDonationsForAdmin,
 }
+
 
 
