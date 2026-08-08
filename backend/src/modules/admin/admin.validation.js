@@ -18,7 +18,7 @@ const adminListDonationsQuerySchema = z.object({
   search: z.string().trim().max(191).optional(),
 })
 
-const reservationStatuses = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'EXPIRED']
+const reservationStatuses = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'EXPIRED', 'REJECTED']
 
 const adminListReservationsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -26,12 +26,17 @@ const adminListReservationsQuerySchema = z.object({
   status: z.enum(reservationStatuses).optional(),
 })
 
+const verifyOrganizationBodySchema = z.object({
+  status: z.enum(['VERIFIED', 'REJECTED'], {
+    errorMap: () => ({ message: 'Status must be VERIFIED or REJECTED.' }),
+  }),
+  reason: z.string().trim().optional(),
+})
+
 module.exports = {
   adminListRestaurantsQuerySchema,
   adminListNgosQuerySchema,
   adminListDonationsQuerySchema,
   adminListReservationsQuerySchema,
+  verifyOrganizationBodySchema,
 }
-
-
-

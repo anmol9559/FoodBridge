@@ -10,19 +10,33 @@ const adminRouter = require('./routes/admin.routes')
 const restaurantRouter = require('./routes/restaurant.routes')
 const ngoRouter = require('./routes/ngo.routes')
 const recyclerRouter = require('./routes/recycler.routes')
+const publicRouter = require('./routes/public.routes')
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler')
 
 const app = express()
 
 app.disable('x-powered-by')
 app.use(helmet())
-app.use(cors({ origin: env.CLIENT_URL, credentials: true }))
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true)
+      if (env.ALLOWED_ORIGINS.includes(origin) || env.ALLOWED_ORIGINS.includes('*')) {
+        return callback(null, true)
+      }
+      return callback(null, false)
+    },
+    credentials: true,
+  })
+)
 app.use(express.json({ limit: '1mb' }))
+
 app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'))
 app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }))
 
 app.use('/health', healthRouter)
+app.use('/api/v1/public', publicRouter)
 app.use('/api/v1/auth', authRouter)
 app.use('/api/v1/admin', adminRouter)
 app.use('/api/v1/restaurant', restaurantRouter)
@@ -32,4 +46,3 @@ app.use(notFoundHandler)
 app.use(errorHandler)
 
 module.exports = app
-

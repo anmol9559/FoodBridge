@@ -142,7 +142,6 @@ async function getAvailableDonationsForNgo({ page = 1, limit = 10, search }) {
     ...(search ? { title: { contains: search } } : {}),
   }
 
-
   const [donations, totalItems] = await prisma.$transaction([
     prisma.foodDonation.findMany({
       where,
@@ -214,6 +213,18 @@ async function reserveDonationForNgo({ donationId, ngoId, userId, notes }) {
       return { status: 'UNAVAILABLE' }
     }
 
+    const activeReservation = await tx.reservation.findFirst({
+      where: {
+        donationId,
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        deletedAt: null,
+      },
+    })
+
+    if (activeReservation) {
+      return { status: 'UNAVAILABLE' }
+    }
+
     await tx.foodDonation.update({
       where: { id: donationId },
       data: { status: 'RESERVED' },
@@ -255,6 +266,7 @@ async function reserveDonationForNgo({ donationId, ngoId, userId, notes }) {
   })
 }
 
+// NGO list API: STRICTLY DOES NOT SELECT pickupVerificationCode FOR SECURITY
 async function getNgoReservations(ngoId, { page = 1, limit = 10, status }) {
   const skip = (page - 1) * limit
 
@@ -276,23 +288,67 @@ async function getNgoReservations(ngoId, { page = 1, limit = 10, status }) {
         id: true,
         status: true,
         notes: true,
+        pickupVerifiedAt: true,
+        reservedAt: true,
         createdAt: true,
+        updatedAt: true,
         donation: {
           select: {
             id: true,
             title: true,
+            description: true,
             quantity: true,
             quantityUnit: true,
             foodType: true,
             mealType: true,
-            pickupAddress: true,
+            packagingType: true,
+            isVegetarian: true,
+            isVegan: true,
+            cookedAt: true,
             expiresAt: true,
+            pickupAddress: true,
+            latitude: true,
+            longitude: true,
+            estimatedServings: true,
+            specialInstructions: true,
             status: true,
             restaurant: {
               select: {
                 id: true,
                 name: true,
+                type: true,
+                description: true,
+                logoImageUrl: true,
+                email: true,
                 phone: true,
+                websiteUrl: true,
+                users: {
+                  where: { deletedAt: null },
+                  take: 1,
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    phone: true,
+                    profileImageUrl: true,
+                  },
+                },
+                locations: {
+                  where: { deletedAt: null },
+                  select: {
+                    id: true,
+                    label: true,
+                    addressLine1: true,
+                    addressLine2: true,
+                    city: true,
+                    state: true,
+                    postalCode: true,
+                    countryCode: true,
+                    latitude: true,
+                    longitude: true,
+                  },
+                },
               },
             },
           },
@@ -315,6 +371,7 @@ async function getNgoReservations(ngoId, { page = 1, limit = 10, status }) {
   }
 }
 
+// RESTAURANT list API: EXCLUSIVELY SELECTS pickupVerificationCode & pickupVerificationExpiresAt FOR RESTAURANT DASHBOARD
 async function getRestaurantReservations(restaurantId, { page = 1, limit = 10, status }) {
   const skip = (page - 1) * limit
 
@@ -338,6 +395,9 @@ async function getRestaurantReservations(restaurantId, { page = 1, limit = 10, s
         id: true,
         status: true,
         notes: true,
+        pickupVerificationCode: true,
+        pickupVerificationExpiresAt: true,
+        pickupVerifiedAt: true,
         createdAt: true,
         donation: {
           select: {
@@ -422,12 +482,23 @@ async function confirmReservationForRestaurant({ reservationId, restaurantId }) 
       return { status: 'INVALID_STATUS' }
     }
 
+    // Generate random 6-digit numeric PIN
+    const generatedPin = Math.floor(100000 + Math.random() * 900000).toString()
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 Hours Expiry
+
     const updatedReservation = await tx.reservation.update({
       where: { id: reservationId },
-      data: { status: 'CONFIRMED' },
+      data: {
+        status: 'CONFIRMED',
+        pickupVerificationCode: generatedPin,
+        pickupVerificationExpiresAt: expiresAt,
+        pickupCode: generatedPin,
+      },
       select: {
         id: true,
         status: true,
+        pickupVerificationCode: true,
+        pickupVerificationExpiresAt: true,
         donation: {
           select: {
             title: true,
@@ -446,9 +517,63 @@ async function confirmReservationForRestaurant({ reservationId, restaurantId }) 
       data: {
         id: updatedReservation.id,
         status: updatedReservation.status,
+        pickupVerificationCode: updatedReservation.pickupVerificationCode,
+        pickupVerificationExpiresAt: updatedReservation.pickupVerificationExpiresAt,
         donationTitle: updatedReservation.donation.title,
         ngoName: updatedReservation.ngo.name,
       },
+    }
+  })
+}
+
+async function regeneratePickupPinForRestaurant({ reservationId, restaurantId }) {
+  return prisma.$transaction(async (tx) => {
+    const reservation = await tx.reservation.findFirst({
+      where: {
+        id: reservationId,
+        deletedAt: null,
+      },
+      include: {
+        donation: {
+          select: {
+            restaurantId: true,
+          },
+        },
+      },
+    })
+
+    if (!reservation) {
+      return { status: 'NOT_FOUND' }
+    }
+
+    if (reservation.donation.restaurantId !== restaurantId) {
+      return { status: 'FORBIDDEN' }
+    }
+
+    if (reservation.status !== 'CONFIRMED') {
+      return { status: 'INVALID_STATUS' }
+    }
+
+    const generatedPin = Math.floor(100000 + Math.random() * 900000).toString()
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+    const updatedReservation = await tx.reservation.update({
+      where: { id: reservationId },
+      data: {
+        pickupVerificationCode: generatedPin,
+        pickupVerificationExpiresAt: expiresAt,
+        pickupCode: generatedPin,
+      },
+      select: {
+        id: true,
+        pickupVerificationCode: true,
+        pickupVerificationExpiresAt: true,
+      },
+    })
+
+    return {
+      status: 'SUCCESS',
+      data: updatedReservation,
     }
   })
 }
@@ -485,7 +610,7 @@ async function rejectReservationForRestaurant({ reservationId, restaurantId }) {
 
     const updatedReservation = await tx.reservation.update({
       where: { id: reservationId },
-      data: { status: 'CANCELLED' },
+      data: { status: 'REJECTED' },
       select: {
         id: true,
         status: true,
@@ -513,7 +638,7 @@ async function rejectReservationForRestaurant({ reservationId, restaurantId }) {
   })
 }
 
-async function completePickupForNgo({ reservationId, ngoId }) {
+async function verifyAndCompletePickupForNgo({ reservationId, ngoId, code }) {
   return prisma.$transaction(async (tx) => {
     const reservation = await tx.reservation.findFirst({
       where: {
@@ -542,12 +667,41 @@ async function completePickupForNgo({ reservationId, ngoId }) {
       return { status: 'INVALID_STATUS' }
     }
 
+    const trimmedInputCode = code ? code.toString().trim() : ''
+    const storedCode = reservation.pickupVerificationCode || reservation.pickupCode
+
+    // 1. Verify code matches
+    if (!storedCode || trimmedInputCode !== storedCode.trim()) {
+      return {
+        status: 'INVALID_PICKUP_CODE',
+        message: 'Invalid pickup code',
+      }
+    }
+
+    // 2. Verify code not expired
+    if (reservation.pickupVerificationExpiresAt && new Date() > new Date(reservation.pickupVerificationExpiresAt)) {
+      return {
+        status: 'PICKUP_CODE_EXPIRED',
+        message: 'Pickup code expired',
+      }
+    }
+
+    const now = new Date()
+
+    // 3. Mark Reservation & Donation COMPLETED, set pickupVerifiedAt, and clear PIN
     const updatedReservation = await tx.reservation.update({
       where: { id: reservationId },
-      data: { status: 'COMPLETED' },
+      data: {
+        status: 'COMPLETED',
+        pickupVerifiedAt: now,
+        pickupVerificationCode: null,
+        pickupVerificationExpiresAt: null,
+        pickupCode: null,
+      },
       select: {
         id: true,
         status: true,
+        pickupVerifiedAt: true,
       },
     })
 
@@ -564,6 +718,7 @@ async function completePickupForNgo({ reservationId, ngoId }) {
       data: {
         id: updatedReservation.id,
         status: updatedReservation.status,
+        pickupVerifiedAt: updatedReservation.pickupVerifiedAt,
         donationTitle: updatedDonation.title,
       },
     }
@@ -581,17 +736,8 @@ module.exports = {
   getNgoReservations,
   getRestaurantReservations,
   confirmReservationForRestaurant,
+  regeneratePickupPinForRestaurant,
   rejectReservationForRestaurant,
-  completePickupForNgo,
+  verifyAndCompletePickupForNgo,
+  completePickupForNgo: verifyAndCompletePickupForNgo,
 }
-
-
-
-
-
-
-
-
-
-
-

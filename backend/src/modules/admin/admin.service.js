@@ -13,40 +13,18 @@ async function getAdminDashboardStats() {
     pendingReservations,
     confirmedReservations,
     completedReservations,
-  ] = await prisma.$transaction([
-    prisma.organization.count({
-      where: { type: 'RESTAURANT', deletedAt: null },
-    }),
-    prisma.organization.count({
-      where: { type: 'NGO', deletedAt: null },
-    }),
-    prisma.foodDonation.count({
-      where: { deletedAt: null },
-    }),
-    prisma.foodDonation.count({
-      where: { status: 'AVAILABLE', deletedAt: null },
-    }),
-    prisma.foodDonation.count({
-      where: { status: 'RESERVED', deletedAt: null },
-    }),
-    prisma.foodDonation.count({
-      where: { status: 'COMPLETED', deletedAt: null },
-    }),
-    prisma.foodDonation.count({
-      where: { status: 'CANCELLED', deletedAt: null },
-    }),
-    prisma.reservation.count({
-      where: { deletedAt: null },
-    }),
-    prisma.reservation.count({
-      where: { status: 'PENDING', deletedAt: null },
-    }),
-    prisma.reservation.count({
-      where: { status: 'CONFIRMED', deletedAt: null },
-    }),
-    prisma.reservation.count({
-      where: { status: 'COMPLETED', deletedAt: null },
-    }),
+  ] = await Promise.all([
+    prisma.organization.count({ where: { type: 'RESTAURANT', deletedAt: null } }),
+    prisma.organization.count({ where: { type: 'NGO', deletedAt: null } }),
+    prisma.foodDonation.count({ where: { deletedAt: null } }),
+    prisma.foodDonation.count({ where: { status: 'AVAILABLE', deletedAt: null } }),
+    prisma.foodDonation.count({ where: { status: 'RESERVED', deletedAt: null } }),
+    prisma.foodDonation.count({ where: { status: 'COMPLETED', deletedAt: null } }),
+    prisma.foodDonation.count({ where: { status: 'CANCELLED', deletedAt: null } }),
+    prisma.reservation.count({ where: { deletedAt: null } }),
+    prisma.reservation.count({ where: { status: 'PENDING', deletedAt: null } }),
+    prisma.reservation.count({ where: { status: 'CONFIRMED', deletedAt: null } }),
+    prisma.reservation.count({ where: { status: 'COMPLETED', deletedAt: null } }),
   ])
 
   return {
@@ -75,6 +53,7 @@ async function getRestaurantsForAdmin({ page = 1, limit = 10, search }) {
           OR: [
             { name: { contains: search } },
             { email: { contains: search } },
+            { registrationNumber: { contains: search } },
           ],
         }
       : {}),
@@ -94,6 +73,7 @@ async function getRestaurantsForAdmin({ page = 1, limit = 10, search }) {
         email: true,
         phone: true,
         registrationNumber: true,
+        verificationStatus: true,
         createdAt: true,
         users: {
           where: {
@@ -123,6 +103,7 @@ async function getRestaurantsForAdmin({ page = 1, limit = 10, search }) {
       email: org.email,
       phone: org.phone,
       registrationNumber: org.registrationNumber,
+      verificationStatus: org.verificationStatus,
       createdAt: org.createdAt,
       owner: owner
         ? {
@@ -158,6 +139,7 @@ async function getNgosForAdmin({ page = 1, limit = 10, search }) {
           OR: [
             { name: { contains: search } },
             { email: { contains: search } },
+            { registrationNumber: { contains: search } },
           ],
         }
       : {}),
@@ -177,6 +159,7 @@ async function getNgosForAdmin({ page = 1, limit = 10, search }) {
         email: true,
         phone: true,
         registrationNumber: true,
+        verificationStatus: true,
         createdAt: true,
         users: {
           where: {
@@ -206,6 +189,7 @@ async function getNgosForAdmin({ page = 1, limit = 10, search }) {
       email: org.email,
       phone: org.phone,
       registrationNumber: org.registrationNumber,
+      verificationStatus: org.verificationStatus,
       createdAt: org.createdAt,
       owner: owner
         ? {
@@ -230,12 +214,20 @@ async function getNgosForAdmin({ page = 1, limit = 10, search }) {
   }
 }
 
-async function getDonationsForAdmin({ page = 1, limit = 10, search }) {
+async function getDonationsForAdmin({ page = 1, limit = 10, status, search }) {
   const skip = (page - 1) * limit
 
   const where = {
     deletedAt: null,
-    ...(search ? { title: { contains: search } } : {}),
+    ...(status ? { status } : {}),
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search } },
+            { restaurant: { name: { contains: search } } },
+          ],
+        }
+      : {}),
   }
 
   const [donations, totalItems] = await prisma.$transaction([
@@ -359,14 +351,116 @@ async function getReservationsForAdmin({ page = 1, limit = 10, status }) {
   }
 }
 
+async function getPendingOrganizationsForAdmin({ status, type, search } = {}) {
+  const where = {
+    deletedAt: null,
+    ...(status ? { verificationStatus: status } : { verificationStatus: 'PENDING' }),
+    ...(type ? { type } : {}),
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search } },
+            { email: { contains: search } },
+            { phone: { contains: search } },
+            { registrationNumber: { contains: search } },
+          ],
+        }
+      : {}),
+  }
+
+  const organizations = await prisma.organization.findMany({
+    where,
+    orderBy: {
+      createdAt: 'desc',
+    },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      description: true,
+      logoImageUrl: true,
+      websiteUrl: true,
+      registrationNumber: true,
+      email: true,
+      phone: true,
+      verificationStatus: true,
+      rejectionReason: true,
+      verifiedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      users: {
+        where: { deletedAt: null },
+        take: 1,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          profileImageUrl: true,
+          createdAt: true,
+        },
+      },
+      locations: {
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          label: true,
+          addressLine1: true,
+          addressLine2: true,
+          city: true,
+          state: true,
+          postalCode: true,
+          countryCode: true,
+          latitude: true,
+          longitude: true,
+        },
+      },
+    },
+  })
+
+  return { organizations }
+}
+
+async function verifyOrganizationForAdmin(id, status, reason) {
+  const existing = await prisma.organization.findFirst({
+    where: { id, deletedAt: null },
+  })
+
+  if (!existing) {
+    return null
+  }
+
+  const updated = await prisma.organization.update({
+    where: { id },
+    data: {
+      verificationStatus: status,
+      verifiedAt: status === 'VERIFIED' ? new Date() : null,
+      rejectionReason: status === 'REJECTED' ? reason || 'Organization verification rejected by administrator.' : null,
+    },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      email: true,
+      phone: true,
+      verificationStatus: true,
+      rejectionReason: true,
+      verifiedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  })
+
+  return updated
+}
+
 module.exports = {
   getAdminDashboardStats,
   getRestaurantsForAdmin,
   getNgosForAdmin,
   getDonationsForAdmin,
   getReservationsForAdmin,
+  getPendingOrganizationsForAdmin,
+  verifyOrganizationForAdmin,
 }
-
-
-
-

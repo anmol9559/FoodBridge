@@ -16,7 +16,7 @@ export type FoodDonationStatus =
 
 export type FoodType = 'COOKED' | 'PACKAGED' | 'RAW' | 'BAKERY' | 'BEVERAGE' | 'OTHER'
 
-export type ReservationStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED'
+export type ReservationStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED' | 'REJECTED'
 
 export interface User {
   id: string
@@ -26,6 +26,28 @@ export interface User {
   phone?: string
   role: UserRole
   organizationId?: string
+  profileImageUrl?: string
+}
+
+export interface OrganizationLocation {
+  id?: string
+  label?: string
+  addressLine1?: string
+  addressLine2?: string
+  city?: string
+  state?: string
+  postalCode?: string
+  countryCode?: string
+  latitude?: number
+  longitude?: number
+}
+
+export interface OrganizationUser {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string
   profileImageUrl?: string
 }
 
@@ -40,6 +62,8 @@ export interface Organization {
   email?: string
   phone?: string
   verificationStatus: VerificationStatus
+  users?: OrganizationUser[]
+  locations?: OrganizationLocation[]
 }
 
 export interface FoodDonation {
@@ -53,31 +77,28 @@ export interface FoodDonation {
   packagingType?: string
   isVegetarian: boolean
   isVegan: boolean
+  cookedAt?: string
   status: FoodDonationStatus
   estimatedServings?: number
+  specialInstructions?: string
   pickupAddress?: string
+  latitude?: number
+  longitude?: number
   createdAt: string
   expiresAt: string
-  restaurant?: {
-    id: string
-    name: string
-    email?: string
-    phone?: string
-  }
+  restaurant?: Organization
 }
 
 export interface Reservation {
   id: string
   status: ReservationStatus
+  pickupCode?: string
   notes?: string
+  reservedAt?: string
   createdAt: string
+  updatedAt?: string
   donation?: FoodDonation
-  ngo?: {
-    id: string
-    name: string
-    email?: string
-    phone?: string
-  }
+  ngo?: Organization
   reservedBy?: User
 }
 

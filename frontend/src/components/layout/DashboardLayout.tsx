@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../store/authStore'
-import { UserRole } from '../../types'
+import { useAuth } from '../../hooks/useAuth'
 import {
   Utensils,
   LayoutDashboard,
@@ -13,28 +12,26 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronDown,
   Bell,
   Search,
+  CheckCircle2,
 } from 'lucide-react'
 
 export const DashboardLayout: React.FC = () => {
-  const { user, role, setRole, logout } = useAuth()
+  const { user, organization, role, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false)
 
-  const handleRoleChange = (newRole: UserRole) => {
-    setRole(newRole)
-    setRoleMenuOpen(false)
-    if (newRole === 'ADMIN') navigate('/admin')
-    else if (newRole === 'NGO') navigate('/ngo')
-    else navigate('/restaurant')
+  const activeRole = role || user?.role
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
   }
 
   const getNavLinks = () => {
-    switch (role) {
+    switch (activeRole) {
       case 'ADMIN':
         return [
           { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
@@ -42,6 +39,7 @@ export const DashboardLayout: React.FC = () => {
           { name: 'NGOs', path: '/admin/ngos', icon: Users },
           { name: 'Donations', path: '/admin/donations', icon: Package },
           { name: 'Reservations', path: '/admin/reservations', icon: CalendarCheck },
+          { name: 'Pending Verifications', path: '/admin/verifications', icon: CheckCircle2 },
         ]
       case 'NGO':
         return [
@@ -62,7 +60,7 @@ export const DashboardLayout: React.FC = () => {
   const navLinks = getNavLinks()
 
   const getRoleBadgeColor = () => {
-    switch (role) {
+    switch (activeRole) {
       case 'ADMIN':
         return 'bg-amber-500/10 text-amber-400 border-amber-500/20'
       case 'NGO':
@@ -96,36 +94,14 @@ export const DashboardLayout: React.FC = () => {
 
         {/* Header Right Actions */}
         <div className="flex items-center space-x-3 sm:space-x-4">
-          {/* Demo Role Switcher Dropdown */}
+          {/* Active Role Badge */}
           <div className="relative">
-            <button
-              onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${getRoleBadgeColor()}`}
+            <div
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border text-xs font-semibold ${getRoleBadgeColor()}`}
             >
               <Shield className="h-3.5 w-3.5" />
-              <span>Role: {role}</span>
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-
-            {roleMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1.5 z-50">
-                <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-                  Switch Role (Demo Preview)
-                </div>
-                {(['RESTAURANT', 'NGO', 'ADMIN'] as UserRole[]).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => handleRoleChange(r)}
-                    className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-800 transition ${
-                      role === r ? 'text-emerald-400 font-semibold' : 'text-slate-300'
-                    }`}
-                  >
-                    <span>{r}</span>
-                    {role === r && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
-                  </button>
-                ))}
-              </div>
-            )}
+              <span>Role: {activeRole}</span>
+            </div>
           </div>
 
           <button className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition relative">
@@ -147,7 +123,7 @@ export const DashboardLayout: React.FC = () => {
           </div>
 
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="p-2 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition"
             title="Logout"
           >
@@ -166,7 +142,7 @@ export const DashboardLayout: React.FC = () => {
         >
           <div className="p-4 space-y-1 overflow-y-auto">
             <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              {role} Navigation
+              {activeRole} Navigation
             </div>
             {navLinks.map((link) => {
               const Icon = link.icon
@@ -193,7 +169,9 @@ export const DashboardLayout: React.FC = () => {
             <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 text-xs space-y-1">
               <p className="text-slate-400 font-semibold">Active Organization</p>
               <p className="text-emerald-400 font-bold truncate">
-                {role === 'ADMIN' ? 'FoodBridge System' : user?.organizationId || 'Green Bites Restaurant'}
+                {activeRole === 'ADMIN'
+                  ? 'FoodBridge System'
+                  : organization?.name || user?.organizationId || 'Organization Profile'}
               </p>
             </div>
           </div>

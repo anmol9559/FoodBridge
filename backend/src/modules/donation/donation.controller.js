@@ -18,8 +18,9 @@ const {
   getNgoReservations,
   getRestaurantReservations,
   confirmReservationForRestaurant,
+  regeneratePickupPinForRestaurant,
   rejectReservationForRestaurant,
-  completePickupForNgo,
+  verifyAndCompletePickupForNgo,
 } = require('./donation.service')
 
 async function postDonation(req, res, next) {
@@ -187,7 +188,6 @@ async function updateSingleDonation(req, res, next) {
     }
 
     const updatedDonation = await updateDonation(id, parsedInput.data)
-
 
     return res.status(StatusCodes.OK).json({
       success: true,
@@ -444,7 +444,57 @@ async function confirmReservation(req, res, next) {
 
     return res.status(StatusCodes.OK).json({
       success: true,
-      message: 'Reservation confirmed successfully.',
+      message: 'Reservation confirmed successfully. Verification PIN generated.',
+      data: result.data,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
+async function regeneratePin(req, res, next) {
+  if (!req.user.organizationId) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'ORGANIZATION_REQUIRED',
+        message: 'Authenticated restaurant user is not associated with an organization.',
+      },
+    })
+  }
+
+  const { id } = req.params
+
+  try {
+    const result = await regeneratePickupPinForRestaurant({
+      reservationId: id,
+      restaurantId: req.user.organizationId,
+    })
+
+    if (result.status === 'NOT_FOUND') {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Reservation not found.' },
+      })
+    }
+
+    if (result.status === 'FORBIDDEN') {
+      return res.status(StatusCodes.FORBIDDEN).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'You do not have permission to modify this reservation.' },
+      })
+    }
+
+    if (result.status === 'INVALID_STATUS') {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        error: { code: 'INVALID_STATUS', message: 'Only confirmed reservations can regenerate PIN.' },
+      })
+    }
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Pickup verification PIN regenerated successfully.',
       data: result.data,
     })
   } catch (error) {
@@ -523,11 +573,13 @@ async function completePickup(req, res, next) {
   }
 
   const { id } = req.params
+  const code = req.body?.code || req.body?.pickupCode
 
   try {
-    const result = await completePickupForNgo({
+    const result = await verifyAndCompletePickupForNgo({
       reservationId: id,
       ngoId: req.user.organizationId,
+      code,
     })
 
     if (result.status === 'NOT_FOUND') {
@@ -560,9 +612,29 @@ async function completePickup(req, res, next) {
       })
     }
 
+    if (result.status === 'INVALID_PICKUP_CODE') {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        error: {
+          code: 'INVALID_PICKUP_CODE',
+          message: 'Invalid pickup code',
+        },
+      })
+    }
+
+    if (result.status === 'PICKUP_CODE_EXPIRED') {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        error: {
+          code: 'PICKUP_CODE_EXPIRED',
+          message: 'Pickup code expired',
+        },
+      })
+    }
+
     return res.status(StatusCodes.OK).json({
       success: true,
-      message: 'Pickup completed successfully.',
+      message: 'Pickup verified and marked as COMPLETED.',
       data: result.data,
     })
   } catch (error) {
@@ -581,17 +653,8 @@ module.exports = {
   listMyReservations,
   listIncomingReservationsForRestaurant,
   confirmReservation,
+  regeneratePin,
   rejectReservation,
   completePickup,
+  verifyPickup: completePickup,
 }
-
-
-
-
-
-
-
-
-
-
-

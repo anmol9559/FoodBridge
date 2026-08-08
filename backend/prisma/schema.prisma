@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -44,7 +42,6 @@ enum FoodDonationStatus {
   COMPLETED
 }
 
-
 enum FoodType {
   COOKED
   PACKAGED
@@ -60,6 +57,7 @@ enum ReservationStatus {
   COMPLETED
   CANCELLED
   EXPIRED
+  REJECTED
 }
 
 model User {
@@ -94,10 +92,11 @@ model Organization {
   description        String?              @db.Text
   logoImageUrl       String?              @db.VarChar(2048)
   websiteUrl         String?              @db.VarChar(2048)
-  registrationNumber String?              @unique @db.VarChar(100)
+  registrationNumber String?              @db.VarChar(100)
   email              String?              @db.VarChar(191)
   phone              String?              @db.VarChar(30)
   verificationStatus VerificationStatus   @default(PENDING)
+  rejectionReason    String?              @db.Text
   verifiedAt         DateTime?
   isActive           Boolean              @default(true)
   deletedAt          DateTime?
@@ -178,7 +177,7 @@ model FoodDonation {
   specialInstructions String?            @db.Text
   images              Json?
   status              FoodDonationStatus @default(AVAILABLE)
-  reservation         Reservation?
+  reservations        Reservation[]
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   deletedAt           DateTime?
@@ -191,24 +190,26 @@ model FoodDonation {
 }
 
 model Reservation {
-  id           String            @id @default(cuid())
-  donationId   String            @unique
-  donation     FoodDonation      @relation(fields: [donationId], references: [id], onDelete: Restrict)
-  ngoId        String
-  ngo          Organization      @relation(fields: [ngoId], references: [id], onDelete: Restrict)
-  reservedById String?
-  reservedBy   User?             @relation(fields: [reservedById], references: [id], onDelete: SetNull)
-  status       ReservationStatus @default(PENDING)
-  notes        String?           @db.Text
-  reservedAt   DateTime          @default(now())
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  deletedAt    DateTime?
+  id                          String            @id @default(cuid())
+  donationId                  String
+  donation                    FoodDonation      @relation(fields: [donationId], references: [id], onDelete: Restrict)
+  ngoId                       String
+  ngo                         Organization      @relation(fields: [ngoId], references: [id], onDelete: Restrict)
+  reservedById                String?
+  reservedBy                  User?             @relation(fields: [reservedById], references: [id], onDelete: SetNull)
+  status                      ReservationStatus @default(PENDING)
+  pickupCode                  String?           @db.VarChar(10)
+  pickupVerificationCode      String?           @db.VarChar(10)
+  pickupVerificationExpiresAt DateTime?
+  pickupVerifiedAt            DateTime?
+  notes                       String?           @db.Text
+  reservedAt                  DateTime          @default(now())
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+  deletedAt                   DateTime?
 
   @@index([ngoId])
   @@index([donationId])
   @@index([status])
   @@index([deletedAt])
 }
-
-
