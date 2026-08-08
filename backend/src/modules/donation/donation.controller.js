@@ -176,7 +176,18 @@ async function updateSingleDonation(req, res, next) {
       })
     }
 
+    if (existingDonation.status !== 'AVAILABLE') {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: 'Donation cannot be updated in its current status.',
+        },
+      })
+    }
+
     const updatedDonation = await updateDonation(id, parsedInput.data)
+
 
     return res.status(StatusCodes.OK).json({
       success: true,

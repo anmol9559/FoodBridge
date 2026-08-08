@@ -132,12 +132,16 @@ async function getAvailableDonationsForNgo({ page = 1, limit = 10, search }) {
   const where = {
     status: 'AVAILABLE',
     deletedAt: null,
+    expiresAt: {
+      gt: new Date(),
+    },
     restaurant: {
       isActive: true,
       deletedAt: null,
     },
     ...(search ? { title: { contains: search } } : {}),
   }
+
 
   const [donations, totalItems] = await prisma.$transaction([
     prisma.foodDonation.findMany({
