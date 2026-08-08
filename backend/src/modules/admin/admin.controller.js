@@ -1,5 +1,6 @@
 const { StatusCodes } = require('http-status-codes')
-const { getAdminDashboardStats } = require('./admin.service')
+const { adminListRestaurantsQuerySchema } = require('./admin.validation')
+const { getAdminDashboardStats, getRestaurantsForAdmin } = require('./admin.service')
 
 async function getDashboardStats(req, res, next) {
   try {
@@ -14,6 +15,37 @@ async function getDashboardStats(req, res, next) {
   }
 }
 
+async function listRestaurants(req, res, next) {
+  const parsedQuery = adminListRestaurantsQuerySchema.safeParse(req.query)
+
+  if (!parsedQuery.success) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Query parameters are invalid.',
+        details: parsedQuery.error.issues.map(({ path, message }) => ({
+          field: path.join('.'),
+          message,
+        })),
+      },
+    })
+  }
+
+  try {
+    const result = await getRestaurantsForAdmin(parsedQuery.data)
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      data: result,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
 module.exports = {
   getDashboardStats,
+  listRestaurants,
 }
+
