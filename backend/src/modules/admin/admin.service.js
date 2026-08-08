@@ -147,8 +147,93 @@ async function getRestaurantsForAdmin({ page = 1, limit = 10, search }) {
   }
 }
 
+async function getNgosForAdmin({ page = 1, limit = 10, search }) {
+  const skip = (page - 1) * limit
+
+  const where = {
+    type: 'NGO',
+    deletedAt: null,
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search } },
+            { email: { contains: search } },
+          ],
+        }
+      : {}),
+  }
+
+  const [organizations, totalItems] = await prisma.$transaction([
+    prisma.organization.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        registrationNumber: true,
+        createdAt: true,
+        users: {
+          where: {
+            deletedAt: null,
+          },
+          take: 1,
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    }),
+    prisma.organization.count({ where }),
+  ])
+
+  const totalPages = Math.ceil(totalItems / limit) || 0
+
+  const ngos = organizations.map((org) => {
+    const owner = org.users && org.users.length > 0 ? org.users[0] : null
+    return {
+      id: org.id,
+      name: org.name,
+      email: org.email,
+      phone: org.phone,
+      registrationNumber: org.registrationNumber,
+      createdAt: org.createdAt,
+      owner: owner
+        ? {
+            id: owner.id,
+            firstName: owner.firstName,
+            lastName: owner.lastName,
+            email: owner.email,
+            phone: owner.phone,
+          }
+        : null,
+    }
+  })
+
+  return {
+    ngos,
+    pagination: {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+    },
+  }
+}
+
 module.exports = {
   getAdminDashboardStats,
   getRestaurantsForAdmin,
+  getNgosForAdmin,
 }
+
 

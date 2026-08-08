@@ -2,7 +2,7 @@ const { Router } = require('express')
 const { StatusCodes } = require('http-status-codes')
 const { authenticate } = require('../middlewares/auth.middleware')
 const { requireRole } = require('../middlewares/role.middleware')
-const { getDashboardStats, listRestaurants } = require('../modules/admin/admin.controller')
+const { getDashboardStats, listRestaurants, listNgos } = require('../modules/admin/admin.controller')
 
 const adminRouter = Router()
 
@@ -19,7 +19,9 @@ adminRouter.get('/test', authenticate, requireRole('ADMIN'), (req, res) => {
 
 adminRouter.get('/dashboard', authenticate, requireRole('ADMIN'), getDashboardStats)
 adminRouter.get('/restaurants', authenticate, requireRole('ADMIN'), listRestaurants)
+adminRouter.get('/ngos', authenticate, requireRole('ADMIN'), listNgos)
 
 module.exports = adminRouter
+
 
 
