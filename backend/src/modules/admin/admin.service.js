@@ -286,12 +286,87 @@ async function getDonationsForAdmin({ page = 1, limit = 10, search }) {
   }
 }
 
+async function getReservationsForAdmin({ page = 1, limit = 10, status }) {
+  const skip = (page - 1) * limit
+
+  const where = {
+    deletedAt: null,
+    ...(status ? { status } : {}),
+  }
+
+  const [reservations, totalItems] = await prisma.$transaction([
+    prisma.reservation.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        status: true,
+        notes: true,
+        createdAt: true,
+        donation: {
+          select: {
+            id: true,
+            title: true,
+            quantity: true,
+            quantityUnit: true,
+            status: true,
+            restaurant: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+        ngo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        reservedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    }),
+    prisma.reservation.count({ where }),
+  ])
+
+  const totalPages = Math.ceil(totalItems / limit) || 0
+
+  return {
+    reservations,
+    pagination: {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+    },
+  }
+}
+
 module.exports = {
   getAdminDashboardStats,
   getRestaurantsForAdmin,
   getNgosForAdmin,
   getDonationsForAdmin,
+  getReservationsForAdmin,
 }
+
 
 
 

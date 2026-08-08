@@ -3,12 +3,14 @@ const {
   adminListRestaurantsQuerySchema,
   adminListNgosQuerySchema,
   adminListDonationsQuerySchema,
+  adminListReservationsQuerySchema,
 } = require('./admin.validation')
 const {
   getAdminDashboardStats,
   getRestaurantsForAdmin,
   getNgosForAdmin,
   getDonationsForAdmin,
+  getReservationsForAdmin,
 } = require('./admin.service')
 
 async function getDashboardStats(req, res, next) {
@@ -111,12 +113,43 @@ async function listDonations(req, res, next) {
   }
 }
 
+async function listReservations(req, res, next) {
+  const parsedQuery = adminListReservationsQuerySchema.safeParse(req.query)
+
+  if (!parsedQuery.success) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Query parameters are invalid.',
+        details: parsedQuery.error.issues.map(({ path, message }) => ({
+          field: path.join('.'),
+          message,
+        })),
+      },
+    })
+  }
+
+  try {
+    const result = await getReservationsForAdmin(parsedQuery.data)
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      data: result,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
 module.exports = {
   getDashboardStats,
   listRestaurants,
   listNgos,
   listDonations,
+  listReservations,
 }
+
 
 
 

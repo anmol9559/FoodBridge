@@ -18,10 +18,20 @@ const adminListDonationsQuerySchema = z.object({
   search: z.string().trim().max(191).optional(),
 })
 
+const reservationStatuses = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'EXPIRED']
+
+const adminListReservationsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  status: z.enum(reservationStatuses).optional(),
+})
+
 module.exports = {
   adminListRestaurantsQuerySchema,
   adminListNgosQuerySchema,
   adminListDonationsQuerySchema,
+  adminListReservationsQuerySchema,
 }
+
 
 
