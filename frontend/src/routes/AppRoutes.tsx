@@ -33,7 +33,7 @@ import { AdminPendingVerificationsPage } from '../pages/admin/AdminPendingVerifi
 import { UnauthorizedPage } from '../pages/UnauthorizedPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 
-// Helper component for Public Auth Routes (Redirects to dashboard if already logged in)
+// Public Auth Route Component
 const PublicAuthRoute: React.FC = () => {
   const { isAuthenticated, role, organization, isLoading } = useAuth()
 
@@ -58,46 +58,12 @@ const PublicAuthRoute: React.FC = () => {
   return <AuthLayout />
 }
 
-// Helper for Root "/" Redirect
-const RootRedirect: React.FC = () => {
-  const { isAuthenticated, role, organization, isLoading } = useAuth()
-
-  if (isLoading) {
-    return null
-  }
-
-  if (!isAuthenticated || !role) {
-    return <Navigate to="/login" replace />
-  }
-
-  if (role !== 'ADMIN') {
-    if (organization?.verificationStatus === 'REJECTED') {
-      return <Navigate to="/verification-rejected" replace />
-    }
-    if (organization?.verificationStatus === 'PENDING') {
-      return <Navigate to="/verification-pending" replace />
-    }
-  }
-
-  switch (role) {
-    case 'ADMIN':
-      return <Navigate to="/admin" replace />
-    case 'NGO':
-      return <Navigate to="/ngo" replace />
-    case 'RESTAURANT':
-    default:
-      return <Navigate to="/restaurant" replace />
-  }
-}
-
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      {/* Root Route Redirect */}
-      <Route path="/" element={<RootRedirect />} />
-
-      {/* Public Auth Routes (/login, /register) */}
+      {/* Public Auth & Landing Routes (/, /login, /register) */}
       <Route element={<PublicAuthRoute />}>
+        <Route path="/" element={null} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
       </Route>
