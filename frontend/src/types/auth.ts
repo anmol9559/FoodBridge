@@ -5,6 +5,18 @@ export interface LoginInput {
   password: string
 }
 
+export interface OrganizationLocationInput {
+  addressLine1?: string
+  addressLine2?: string
+  city?: string
+  state?: string
+  postalCode?: string
+  countryCode?: string
+  latitude?: number
+  longitude?: number
+  googleMapsUrl?: string
+}
+
 export interface RegisterInput {
   firstName: string
   lastName: string
@@ -19,6 +31,7 @@ export interface RegisterInput {
     phone?: string
     description?: string
     websiteUrl?: string
+    location?: OrganizationLocationInput
   }
 }
 

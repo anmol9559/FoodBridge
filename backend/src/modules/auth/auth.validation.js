@@ -9,6 +9,18 @@ const passwordSchema = z.string()
 
 const organizationRoles = ['RESTAURANT', 'NGO', 'RECYCLER']
 
+const locationSchema = z.object({
+  addressLine1: z.string().trim().max(191).optional(),
+  addressLine2: z.string().trim().max(191).optional(),
+  city: z.string().trim().max(100).optional(),
+  state: z.string().trim().max(100).optional(),
+  postalCode: z.string().trim().max(30).optional(),
+  countryCode: z.string().trim().max(10).optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  googleMapsUrl: z.string().trim().max(2048).optional(),
+}).passthrough().optional()
+
 const registerSchema = z.object({
   firstName: z.string().trim().min(1).max(100),
   lastName: z.string().trim().min(1).max(100),
@@ -22,9 +34,10 @@ const registerSchema = z.object({
     email: z.string().trim().toLowerCase().email().max(191).optional(),
     phone: optionalText(30),
     description: optionalText(65_535),
-    websiteUrl: z.string().trim().url().max(2048).optional(),
-  }).strict(),
-}).strict()
+    websiteUrl: z.string().trim().max(2048).optional(),
+    location: locationSchema,
+  }).passthrough(),
+}).passthrough()
 
 const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(191),
@@ -32,5 +45,3 @@ const loginSchema = z.object({
 }).strict()
 
 module.exports = { loginSchema, registerSchema }
-
-

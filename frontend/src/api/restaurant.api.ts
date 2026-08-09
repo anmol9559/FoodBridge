@@ -1,5 +1,5 @@
 import api from '../lib/axios'
-import { ApiResponse, FoodDonation, Reservation, Pagination } from '../types'
+import { ApiResponse, FoodDonation, Reservation, Pagination, RecoveryMethod, RestaurantAnalytics } from '../types'
 
 export interface RestaurantDonationsResponse {
   donations: FoodDonation[]
@@ -36,6 +36,11 @@ export interface CreateDonationPayload {
   specialInstructions?: string
 }
 
+export interface RecoverDonationPayload {
+  recoveryMethod: RecoveryMethod
+  recoveryNotes?: string
+}
+
 export async function getRestaurantDonations(params?: {
   page?: number
   limit?: number
@@ -45,26 +50,36 @@ export async function getRestaurantDonations(params?: {
   const response = await api.get<ApiResponse<RestaurantDonationsResponse>>('/restaurant/donations', {
     params,
   })
-  return response.data.data
+  return response.data.data!
 }
 
 export async function getSingleDonationApi(id: string): Promise<FoodDonation> {
   const response = await api.get<ApiResponse<FoodDonation>>(`/restaurant/donations/${id}`)
-  return response.data.data
+  return response.data.data!
 }
 
 export async function createDonationApi(payload: CreateDonationPayload): Promise<FoodDonation> {
   const response = await api.post<ApiResponse<FoodDonation>>('/restaurant/donations', payload)
-  return response.data.data
+  return response.data.data!
 }
 
 export async function updateDonationApi(id: string, payload: Partial<CreateDonationPayload>): Promise<FoodDonation> {
   const response = await api.put<ApiResponse<FoodDonation>>(`/restaurant/donations/${id}`, payload)
-  return response.data.data
+  return response.data.data!
 }
 
 export async function deleteDonationApi(id: string): Promise<void> {
   await api.delete(`/restaurant/donations/${id}`)
+}
+
+export async function recoverDonationApi(id: string, payload: RecoverDonationPayload): Promise<FoodDonation> {
+  const response = await api.patch<ApiResponse<FoodDonation>>(`/restaurant/donations/${id}/recover`, payload)
+  return response.data.data!
+}
+
+export async function getRestaurantAnalyticsApi(): Promise<RestaurantAnalytics> {
+  const response = await api.get<ApiResponse<RestaurantAnalytics>>('/restaurant/analytics')
+  return response.data.data!
 }
 
 export async function getRestaurantReservations(params?: {
@@ -75,7 +90,7 @@ export async function getRestaurantReservations(params?: {
   const response = await api.get<ApiResponse<RestaurantReservationsResponse>>('/restaurant/reservations', {
     params,
   })
-  return response.data.data
+  return response.data.data!
 }
 
 export async function confirmReservationApi(id: string): Promise<ApiResponse<unknown>> {

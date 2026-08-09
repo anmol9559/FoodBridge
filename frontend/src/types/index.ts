@@ -13,6 +13,16 @@ export type FoodDonationStatus =
   | 'EXPIRED'
   | 'CANCELLED'
   | 'COMPLETED'
+  | 'RECOVERY_PENDING'
+  | 'RECOVERED'
+
+export type RecoveryMethod =
+  | 'CATTLE_FEED'
+  | 'COMPOST'
+  | 'BIOGAS'
+  | 'ORGANIC_FERTILIZER'
+  | 'ANIMAL_SHELTER'
+  | 'SAFE_DISPOSAL'
 
 export type FoodType = 'COOKED' | 'PACKAGED' | 'RAW' | 'BAKERY' | 'BEVERAGE' | 'OTHER'
 
@@ -87,6 +97,15 @@ export interface FoodDonation {
   createdAt: string
   expiresAt: string
   restaurant?: Organization
+  recoveryMethod?: RecoveryMethod
+  recoveryNotes?: string
+  recoveredAt?: string
+  recoveredBy?: {
+    id: string
+    firstName: string
+    lastName: string
+    email?: string
+  }
 }
 
 export interface Reservation {
@@ -100,6 +119,40 @@ export interface Reservation {
   donation?: FoodDonation
   ngo?: Organization
   reservedBy?: User
+}
+
+export interface RestaurantAnalytics {
+  totalDonations: number
+  mealsDonated: number
+  mealsSaved: number
+  expiredDonations: number
+  recoveredDonations: number
+  recoveryRate: number
+  recoveryMethods: Record<RecoveryMethod, number>
+}
+
+export interface AdminDashboardStats {
+  totalRestaurants: number
+  totalNgos: number
+  totalDonations: number
+  availableDonations: number
+  reservedDonations: number
+  completedDonations: number
+  cancelledDonations: number
+  expiredDonations: number
+  recoveredDonations: number
+  recoveryPendingDonations: number
+  cattleFeedDonations: number
+  compostDonations: number
+  biogasDonations: number
+  organicFertilizerDonations: number
+  animalShelterDonations: number
+  safeDisposalDonations: number
+  recoveryPercentage: number
+  totalReservations: number
+  pendingReservations: number
+  confirmedReservations: number
+  completedReservations: number
 }
 
 export interface Pagination {

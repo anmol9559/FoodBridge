@@ -61,22 +61,39 @@ export const LoginForm: React.FC = () => {
       }
     } catch (err: unknown) {
       const errorObj = err as {
-        response?: { data?: { error?: { code?: string; message?: string } } }
+        response?: {
+          status?: number
+          data?: { error?: { code?: string; message?: string }; message?: string }
+        }
         message?: string
       }
+
+      const status = errorObj.response?.status
       const errCode = errorObj.response?.data?.error?.code
-      let backendMessage = errorObj.response?.data?.error?.message
+      const serverMessage = errorObj.response?.data?.error?.message || errorObj.response?.data?.message
+
+      let backendMessage = serverMessage
 
       if (errCode === 'INVALID_CREDENTIALS') {
         backendMessage = 'Invalid email or password.'
       } else if (errCode === 'ORGANIZATION_PENDING') {
         backendMessage = 'Your organization is waiting for admin approval.'
       } else if (errCode === 'ORGANIZATION_REJECTED') {
-        backendMessage = 'Your organization has been rejected. Please contact the administrator.'
+        backendMessage = 'Your organization has been rejected by the administrator.'
       } else if (errCode === 'ACCOUNT_DISABLED') {
         backendMessage = 'Your account has been disabled. Please contact support.'
       } else if (!backendMessage) {
-        backendMessage = errorObj.message || 'Unable to sign in. Please verify your credentials and try again.'
+        if (status === 401) {
+          backendMessage = 'Invalid email or password.'
+        } else if (status === 403) {
+          backendMessage = 'Access forbidden. Your account or organization status is not active.'
+        } else if (status === 500) {
+          backendMessage = 'Internal server error. Please try again later.'
+        } else if (errorObj.message === 'Network Error' || !status) {
+          backendMessage = 'Unable to connect to FoodBridge server (Network Error). Please check if backend API (port 5001) is running.'
+        } else {
+          backendMessage = errorObj.message || 'Unable to sign in. Please verify your credentials and try again.'
+        }
       }
 
       setErrorMessage(backendMessage)

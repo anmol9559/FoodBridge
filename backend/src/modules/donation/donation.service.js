@@ -46,7 +46,15 @@ async function getRestaurantDonations(restaurantId, { page = 1, limit = 10, stat
     restaurantId,
     deletedAt: null,
     ...(status ? { status } : {}),
-    ...(search ? { title: { contains: search } } : {}),
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search } },
+            { recoveryNotes: { contains: search } },
+            { recoveryMethod: { contains: search } },
+          ],
+        }
+      : {}),
   }
 
   const [donations, totalItems] = await prisma.$transaction([
@@ -57,11 +65,21 @@ async function getRestaurantDonations(restaurantId, { page = 1, limit = 10, stat
       orderBy: {
         createdAt: 'desc',
       },
+      include: {
+        recoveredBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
     }),
     prisma.foodDonation.count({ where }),
   ])
 
-  const totalPages = Math.ceil(totalItems / limit)
+  const totalPages = Math.ceil(totalItems / limit) || 0
 
   return {
     donations,
@@ -88,6 +106,14 @@ async function getDonationById(donationId) {
           type: true,
           email: true,
           phone: true,
+        },
+      },
+      recoveredBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
         },
       },
     },
@@ -725,6 +751,119 @@ async function verifyAndCompletePickupForNgo({ reservationId, ngoId, code }) {
   })
 }
 
+async function recoverDonation({ donationId, restaurantId, userId, recoveryMethod, recoveryNotes }) {
+  return prisma.$transaction(async (tx) => {
+    const donation = await tx.foodDonation.findFirst({
+      where: {
+        id: donationId,
+        deletedAt: null,
+      },
+    })
+
+    if (!donation) {
+      return { status: 'NOT_FOUND' }
+    }
+
+    if (donation.restaurantId !== restaurantId) {
+      return { status: 'FORBIDDEN' }
+    }
+
+    const isExpiredByTime = new Date() > new Date(donation.expiresAt)
+    if (donation.status !== 'EXPIRED' && !isExpiredByTime) {
+      return { status: 'NOT_EXPIRED', message: 'Only expired donations can be recovered.' }
+    }
+
+    const validUser = userId ? await tx.user.findFirst({ where: { id: userId, deletedAt: null } }) : null
+
+    const updatedDonation = await tx.foodDonation.update({
+      where: { id: donationId },
+      data: {
+        status: 'RECOVERED',
+        recoveryMethod,
+        recoveryNotes: recoveryNotes || undefined,
+        recoveredAt: new Date(),
+        recoveredById: validUser ? validUser.id : undefined,
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        recoveredBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    })
+
+    return { status: 'SUCCESS', donation: updatedDonation }
+  })
+}
+
+async function getRestaurantAnalytics(restaurantId) {
+  const [
+    totalDonations,
+    mealsDonated,
+    mealsSaved,
+    expiredDonations,
+    recoveredDonations,
+    cattleFeedCount,
+    compostCount,
+    biogasCount,
+    organicFertilizerCount,
+    animalShelterCount,
+    safeDisposalCount,
+  ] = await Promise.all([
+    prisma.foodDonation.count({ where: { restaurantId, deletedAt: null } }),
+    prisma.foodDonation.aggregate({
+      where: { restaurantId, deletedAt: null },
+      _sum: { estimatedServings: true },
+    }),
+    prisma.foodDonation.aggregate({
+      where: { restaurantId, status: 'COMPLETED', deletedAt: null },
+      _sum: { estimatedServings: true },
+    }),
+    prisma.foodDonation.count({ where: { restaurantId, status: 'EXPIRED', deletedAt: null } }),
+    prisma.foodDonation.count({ where: { restaurantId, status: 'RECOVERED', deletedAt: null } }),
+    prisma.foodDonation.count({ where: { restaurantId, status: 'RECOVERED', recoveryMethod: 'CATTLE_FEED', deletedAt: null } }),
+    prisma.foodDonation.count({ where: { restaurantId, status: 'RECOVERED', recoveryMethod: 'COMPOST', deletedAt: null } }),
+    prisma.foodDonation.count({ where: { restaurantId, status: 'RECOVERED', recoveryMethod: 'BIOGAS', deletedAt: null } }),
+    prisma.foodDonation.count({ where: { restaurantId, status: 'RECOVERED', recoveryMethod: 'ORGANIC_FERTILIZER', deletedAt: null } }),
+    prisma.foodDonation.count({ where: { restaurantId, status: 'RECOVERED', recoveryMethod: 'ANIMAL_SHELTER', deletedAt: null } }),
+    prisma.foodDonation.count({ where: { restaurantId, status: 'RECOVERED', recoveryMethod: 'SAFE_DISPOSAL', deletedAt: null } }),
+  ])
+
+  const totalExpiredAndRecovered = expiredDonations + recoveredDonations
+  const recoveryRate = totalExpiredAndRecovered > 0
+    ? Number(((recoveredDonations / totalExpiredAndRecovered) * 100).toFixed(1))
+    : 0
+
+  return {
+    totalDonations,
+    mealsDonated: mealsDonated._sum.estimatedServings || 0,
+    mealsSaved: mealsSaved._sum.estimatedServings || 0,
+    expiredDonations,
+    recoveredDonations,
+    recoveryRate,
+    recoveryMethods: {
+      CATTLE_FEED: cattleFeedCount,
+      COMPOST: compostCount,
+      BIOGAS: biogasCount,
+      ORGANIC_FERTILIZER: organicFertilizerCount,
+      ANIMAL_SHELTER: animalShelterCount,
+      SAFE_DISPOSAL: safeDisposalCount,
+    },
+  }
+}
+
 module.exports = {
   createDonation,
   getRestaurantDonations,
@@ -740,4 +879,6 @@ module.exports = {
   rejectReservationForRestaurant,
   verifyAndCompletePickupForNgo,
   completePickupForNgo: verifyAndCompletePickupForNgo,
+  recoverDonation,
+  getRestaurantAnalytics,
 }

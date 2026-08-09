@@ -40,6 +40,17 @@ enum FoodDonationStatus {
   EXPIRED
   CANCELLED
   COMPLETED
+  RECOVERY_PENDING
+  RECOVERED
+}
+
+enum RecoveryMethod {
+  CATTLE_FEED
+  COMPOST
+  BIOGAS
+  ORGANIC_FERTILIZER
+  ANIMAL_SHELTER
+  SAFE_DISPOSAL
 }
 
 enum FoodType {
@@ -61,24 +72,27 @@ enum ReservationStatus {
 }
 
 model User {
-  id              String         @id @default(cuid())
-  email           String         @unique @db.VarChar(191)
-  passwordHash    String         @db.VarChar(255)
-  firstName       String         @db.VarChar(100)
-  lastName        String         @db.VarChar(100)
-  phone           String?        @db.VarChar(30)
-  role            UserRole
-  profileImageUrl String?        @db.VarChar(2048)
-  isActive        Boolean        @default(true)
-  emailVerifiedAt DateTime?
-  lastLoginAt     DateTime?
-  deletedAt       DateTime?
-  organizationId  String?
-  organization    Organization?  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  refreshTokens   RefreshToken[]
-  reservations    Reservation[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                 String         @id @default(cuid())
+  email              String         @unique @db.VarChar(191)
+  passwordHash       String         @db.VarChar(255)
+  firstName          String         @db.VarChar(100)
+  lastName           String         @db.VarChar(100)
+  phone              String?        @db.VarChar(30)
+  role               UserRole
+  profileImageUrl    String?        @db.VarChar(2048)
+  isActive           Boolean        @default(true)
+  emailVerifiedAt    DateTime?
+  lastLoginAt        DateTime?
+  deletedAt          DateTime?
+  organizationId        String?
+  organization          Organization?  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  verifiedOrganizations Organization[] @relation("OrganizationVerifiedBy")
+  rejectedOrganizations Organization[] @relation("OrganizationRejectedBy")
+  refreshTokens         RefreshToken[]
+  reservations          Reservation[]
+  recoveredDonations    FoodDonation[] @relation("DonationRecoveredBy")
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
   @@index([organizationId])
   @@index([role, isActive])
@@ -98,6 +112,11 @@ model Organization {
   verificationStatus VerificationStatus   @default(PENDING)
   rejectionReason    String?              @db.Text
   verifiedAt         DateTime?
+  verifiedById       String?
+  verifiedBy         User?                @relation("OrganizationVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  rejectedAt         DateTime?
+  rejectedById       String?
+  rejectedBy         User?                @relation("OrganizationRejectedBy", fields: [rejectedById], references: [id], onDelete: SetNull)
   isActive           Boolean              @default(true)
   deletedAt          DateTime?
   users              User[]
@@ -124,6 +143,7 @@ model OrganizationLocation {
   countryCode    String       @db.Char(2)
   latitude       Decimal      @db.Decimal(10, 7)
   longitude      Decimal      @db.Decimal(10, 7)
+  googleMapsUrl  String?      @db.VarChar(2048)
   timezone       String       @default("UTC") @db.VarChar(100)
   isPrimary      Boolean      @default(false)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -177,6 +197,11 @@ model FoodDonation {
   specialInstructions String?            @db.Text
   images              Json?
   status              FoodDonationStatus @default(AVAILABLE)
+  recoveryMethod      RecoveryMethod?
+  recoveryNotes       String?            @db.Text
+  recoveredAt         DateTime?
+  recoveredById       String?
+  recoveredBy         User?              @relation("DonationRecoveredBy", fields: [recoveredById], references: [id], onDelete: SetNull)
   reservations        Reservation[]
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt

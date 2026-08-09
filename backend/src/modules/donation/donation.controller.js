@@ -6,6 +6,7 @@ const {
   ngoListDonationsQuerySchema,
   listNgoReservationsQuerySchema,
   listRestaurantReservationsQuerySchema,
+  recoverDonationSchema,
 } = require('./donation.validation')
 const {
   createDonation,
@@ -21,6 +22,8 @@ const {
   regeneratePickupPinForRestaurant,
   rejectReservationForRestaurant,
   verifyAndCompletePickupForNgo,
+  recoverDonation,
+  getRestaurantAnalytics,
 } = require('./donation.service')
 
 async function postDonation(req, res, next) {
@@ -642,6 +645,81 @@ async function completePickup(req, res, next) {
   }
 }
 
+async function recoverSingleDonation(req, res, next) {
+  try {
+    const donationId = req.params.id
+    const restaurantId = req.user.organizationId
+    const userId = req.user.id
+
+    const parsed = recoverDonationSchema.safeParse(req.body)
+
+    if (!parsed.success) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid recovery data.',
+          details: parsed.error.issues.map(({ path, message }) => ({
+            field: path.join('.'),
+            message,
+          })),
+        },
+      })
+    }
+
+    const result = await recoverDonation({
+      donationId,
+      restaurantId,
+      userId,
+      recoveryMethod: parsed.data.recoveryMethod,
+      recoveryNotes: parsed.data.recoveryNotes,
+    })
+
+    if (result.status === 'NOT_FOUND') {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        success: false,
+        message: 'Donation not found.',
+      })
+    }
+
+    if (result.status === 'FORBIDDEN') {
+      return res.status(StatusCodes.FORBIDDEN).json({
+        success: false,
+        message: 'You can only recover donations created by your organization.',
+      })
+    }
+
+    if (result.status === 'NOT_EXPIRED') {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        message: result.message || 'Only expired donations can be recovered.',
+      })
+    }
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Donation successfully marked as recovered.',
+      data: result.donation,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
+async function getMyRestaurantAnalytics(req, res, next) {
+  try {
+    const restaurantId = req.user.organizationId
+    const analytics = await getRestaurantAnalytics(restaurantId)
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      data: analytics,
+    })
+  } catch (error) {
+    return next(error)
+  }
+}
+
 module.exports = {
   postDonation,
   listMyDonations,
@@ -657,4 +735,6 @@ module.exports = {
   rejectReservation,
   completePickup,
   verifyPickup: completePickup,
+  recoverSingleDonation,
+  getMyRestaurantAnalytics,
 }

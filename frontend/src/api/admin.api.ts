@@ -1,19 +1,7 @@
 import api from '../lib/axios'
-import { ApiResponse, Reservation, FoodDonation, Pagination } from '../types'
+import { ApiResponse, Reservation, FoodDonation, Pagination, AdminDashboardStats } from '../types'
 
-export interface AdminDashboardStats {
-  totalRestaurants: number
-  totalNgos: number
-  totalDonations: number
-  availableDonations: number
-  reservedDonations: number
-  completedDonations: number
-  cancelledDonations: number
-  totalReservations: number
-  pendingReservations: number
-  confirmedReservations: number
-  completedReservations: number
-}
+export type { AdminDashboardStats }
 
 export interface AdminReservationsResponse {
   reservations: Reservation[]
@@ -36,6 +24,7 @@ export interface AdminOrganizationLocation {
   countryCode?: string
   latitude?: number
   longitude?: number
+  googleMapsUrl?: string
 }
 
 export interface AdminOrganizationUser {
@@ -61,6 +50,11 @@ export interface AdminOrganizationItem {
   verificationStatus?: string
   rejectionReason?: string
   verifiedAt?: string
+  verifiedById?: string
+  verifiedBy?: AdminOrganizationUser | null
+  rejectedAt?: string
+  rejectedById?: string
+  rejectedBy?: AdminOrganizationUser | null
   createdAt?: string
   updatedAt?: string
   users?: AdminOrganizationUser[]
@@ -84,7 +78,7 @@ export interface PendingOrganizationsResponse {
 
 export async function getDashboardStats(): Promise<AdminDashboardStats> {
   const response = await api.get<ApiResponse<AdminDashboardStats>>('/admin/dashboard')
-  return response.data.data
+  return response.data.data!
 }
 
 export async function getAdminReservations(params?: {
@@ -95,7 +89,7 @@ export async function getAdminReservations(params?: {
   const response = await api.get<ApiResponse<AdminReservationsResponse>>('/admin/reservations', {
     params,
   })
-  return response.data.data
+  return response.data.data!
 }
 
 export async function getAdminDonations(params?: {
@@ -107,7 +101,7 @@ export async function getAdminDonations(params?: {
   const response = await api.get<ApiResponse<AdminDonationsResponse>>('/admin/donations', {
     params,
   })
-  return response.data.data
+  return response.data.data!
 }
 
 export async function getAdminRestaurants(params?: {
@@ -118,7 +112,7 @@ export async function getAdminRestaurants(params?: {
   const response = await api.get<ApiResponse<AdminRestaurantsResponse>>('/admin/restaurants', {
     params,
   })
-  return response.data.data
+  return response.data.data!
 }
 
 export async function getAdminNgos(params?: {
@@ -129,7 +123,7 @@ export async function getAdminNgos(params?: {
   const response = await api.get<ApiResponse<AdminNgosResponse>>('/admin/ngos', {
     params,
   })
-  return response.data.data
+  return response.data.data!
 }
 
 export async function getPendingOrganizationsApi(params?: {
@@ -140,17 +134,19 @@ export async function getPendingOrganizationsApi(params?: {
   const response = await api.get<ApiResponse<PendingOrganizationsResponse>>('/admin/organizations/pending', {
     params,
   })
-  return response.data.data
+  return response.data.data!
 }
 
 export async function verifyOrganizationApi(
   id: string,
   status: 'VERIFIED' | 'REJECTED',
+  adminPassword: string,
   reason?: string
 ): Promise<AdminOrganizationItem> {
   const response = await api.patch<ApiResponse<AdminOrganizationItem>>(`/admin/organizations/${id}/verify`, {
     status,
+    adminPassword,
     reason,
   })
-  return response.data.data
+  return response.data.data!
 }

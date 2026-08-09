@@ -164,6 +164,17 @@ export const RegisterForm: React.FC = () => {
         phone: `${data.phoneCountryCode}${data.phone}`,
         description: data.organizationDescription || undefined,
         websiteUrl: data.organizationWebsiteUrl || undefined,
+        location: {
+          addressLine1: data.streetAddress,
+          addressLine2: data.landmark,
+          city: data.city,
+          state: data.state,
+          postalCode: data.pincode,
+          countryCode: data.country === 'India' ? 'IN' : 'IN',
+          latitude: data.latitude,
+          longitude: data.longitude,
+          googleMapsUrl: data.latitude && data.longitude ? `https://www.google.com/maps?q=${data.latitude},${data.longitude}` : undefined,
+        },
       },
     }
 

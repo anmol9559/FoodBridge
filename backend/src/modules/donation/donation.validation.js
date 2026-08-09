@@ -45,8 +45,34 @@ const createDonationSchema = z
     },
   )
 
-const donationStatuses = ['AVAILABLE', 'RESERVED', 'APPROVED', 'PICKED_UP', 'COLLECTED', 'EXPIRED', 'CANCELLED', 'COMPLETED']
+const donationStatuses = [
+  'AVAILABLE',
+  'RESERVED',
+  'APPROVED',
+  'PICKED_UP',
+  'COLLECTED',
+  'EXPIRED',
+  'CANCELLED',
+  'COMPLETED',
+  'RECOVERY_PENDING',
+  'RECOVERED',
+]
 
+const recoveryMethods = [
+  'CATTLE_FEED',
+  'COMPOST',
+  'BIOGAS',
+  'ORGANIC_FERTILIZER',
+  'ANIMAL_SHELTER',
+  'SAFE_DISPOSAL',
+]
+
+const recoverDonationSchema = z
+  .object({
+    recoveryMethod: z.enum(recoveryMethods, { errorMap: () => ({ message: 'Invalid recovery method.' }) }),
+    recoveryNotes: z.string().trim().max(65_535).optional(),
+  })
+  .strict()
 
 const listDonationsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -130,12 +156,7 @@ module.exports = {
   reserveDonationSchema,
   listNgoReservationsQuerySchema,
   listRestaurantReservationsQuerySchema,
+  recoverDonationSchema,
+  recoveryMethods,
+  donationStatuses,
 }
-
-
-
-
-
-
-
-

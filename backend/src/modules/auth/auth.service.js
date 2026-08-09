@@ -29,6 +29,30 @@ async function registerUser(input) {
       },
     })
 
+    if (input.organization.location) {
+      const loc = input.organization.location
+      const lat = loc.latitude !== undefined && loc.latitude !== null ? Number(loc.latitude) : 0
+      const lng = loc.longitude !== undefined && loc.longitude !== null ? Number(loc.longitude) : 0
+      const googleMapsUrl = loc.googleMapsUrl || (lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : null)
+
+      await tx.organizationLocation.create({
+        data: {
+          organizationId: organization.id,
+          label: 'Primary Location',
+          addressLine1: loc.addressLine1 || loc.streetAddress || 'Main Address',
+          addressLine2: loc.addressLine2 || loc.landmark || null,
+          city: loc.city || 'City',
+          state: loc.state || null,
+          postalCode: loc.postalCode || loc.pincode || null,
+          countryCode: (loc.countryCode || loc.country || 'IN').substring(0, 2).toUpperCase(),
+          latitude: lat,
+          longitude: lng,
+          googleMapsUrl,
+          isPrimary: true,
+        },
+      })
+    }
+
     const user = await tx.user.create({
       data: {
         firstName: input.firstName,
@@ -71,9 +95,10 @@ function hashRefreshToken(token) {
 }
 
 async function loginUser({ email, password, ipAddress, userAgent }) {
+  const normalizedEmail = email ? email.trim().toLowerCase() : ''
   const user = await prisma.user.findFirst({
     where: {
-      email,
+      email: normalizedEmail,
       deletedAt: null,
     },
     include: {

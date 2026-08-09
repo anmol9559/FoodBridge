@@ -31,6 +31,7 @@ const verifyOrganizationBodySchema = z.object({
     errorMap: () => ({ message: 'Status must be VERIFIED or REJECTED.' }),
   }),
   reason: z.string().trim().optional(),
+  adminPassword: z.string().min(1, 'Admin password is required.'),
 })
 
 module.exports = {

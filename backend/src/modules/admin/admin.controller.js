@@ -177,9 +177,35 @@ async function verifyOrganization(req, res, next) {
   }
 
   try {
-    const result = await verifyOrganizationForAdmin(id, parsedInput.data.status, parsedInput.data.reason)
+    const result = await verifyOrganizationForAdmin({
+      id,
+      status: parsedInput.data.status,
+      reason: parsedInput.data.reason,
+      adminPassword: parsedInput.data.adminPassword,
+      adminUserId: req.user.id,
+    })
 
-    if (!result) {
+    if (result.error === 'INVALID_PASSWORD') {
+      return res.status(StatusCodes.UNAUTHORIZED).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Invalid admin password. Verification failed.',
+        },
+      })
+    }
+
+    if (result.error === 'REASON_REQUIRED') {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        error: {
+          code: 'BAD_REQUEST',
+          message: result.message,
+        },
+      })
+    }
+
+    if (result.error === 'NOT_FOUND') {
       return res.status(StatusCodes.NOT_FOUND).json({
         success: false,
         error: {
@@ -192,7 +218,7 @@ async function verifyOrganization(req, res, next) {
     return res.status(StatusCodes.OK).json({
       success: true,
       message: `Organization status updated to ${parsedInput.data.status}.`,
-      data: result,
+      data: result.organization,
     })
   } catch (error) {
     return next(error)
@@ -201,12 +227,38 @@ async function verifyOrganization(req, res, next) {
 
 async function rejectOrganization(req, res, next) {
   const { id } = req.params
-  const reason = req.body?.reason
+  const { reason, adminPassword } = req.body || {}
 
   try {
-    const result = await verifyOrganizationForAdmin(id, 'REJECTED', reason)
+    const result = await verifyOrganizationForAdmin({
+      id,
+      status: 'REJECTED',
+      reason,
+      adminPassword,
+      adminUserId: req.user.id,
+    })
 
-    if (!result) {
+    if (result.error === 'INVALID_PASSWORD') {
+      return res.status(StatusCodes.UNAUTHORIZED).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Invalid admin password. Verification failed.',
+        },
+      })
+    }
+
+    if (result.error === 'REASON_REQUIRED') {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        error: {
+          code: 'BAD_REQUEST',
+          message: result.message,
+        },
+      })
+    }
+
+    if (result.error === 'NOT_FOUND') {
       return res.status(StatusCodes.NOT_FOUND).json({
         success: false,
         error: {
@@ -219,7 +271,7 @@ async function rejectOrganization(req, res, next) {
     return res.status(StatusCodes.OK).json({
       success: true,
       message: 'Organization status updated to REJECTED.',
-      data: result,
+      data: result.organization,
     })
   } catch (error) {
     return next(error)
